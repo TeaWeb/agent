@@ -15,3 +15,13 @@ bin/teaweb-agent test
 ~~~bash
 bin/teaweb-agent start
 ~~~
+
+停止：
+~~~bash
+bin/teaweb-agent stop
+~~~
+
+重启：
+~~~bash
+bin/teaweb-agent restart
+~~~

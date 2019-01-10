@@ -13,9 +13,13 @@ import (
 	"github.com/iwind/TeaGo/lists"
 	"github.com/iwind/TeaGo/logs"
 	"github.com/iwind/TeaGo/maps"
+	"github.com/iwind/TeaGo/types"
 	"io/ioutil"
+	"log"
 	"net"
 	"net/http"
+	"os"
+	"os/exec"
 	"reflect"
 	"regexp"
 	"sync"
@@ -30,8 +34,6 @@ var isBooting = true
 
 // 启动
 func Start() {
-	logs.Println("starting ...")
-
 	// 连接配置
 	{
 		config, err := teaconfigs.SharedAgentConfig()
@@ -41,6 +43,53 @@ func Start() {
 		}
 		connectConfig = config
 	}
+
+	// 启动
+	if lists.Contains(os.Args, "start") {
+		onStart()
+		return
+	}
+
+	// 停止
+	if lists.Contains(os.Args, "stop") {
+		onStop()
+		return
+	}
+
+	// 重启
+	if lists.Contains(os.Args, "restart") {
+		onStop()
+		onStart()
+		return
+	}
+
+	// 测试连接
+	if lists.Contains(os.Args, "test") {
+		err := testConnection()
+		if err != nil {
+			logs.Println("error:", err.Error())
+		} else {
+			logs.Println("connection to master is ok")
+		}
+		return
+	}
+
+	// 日志
+	if lists.Contains(os.Args, "background") {
+		logDir := files.NewFile(Tea.Root + "/logs")
+		if !logDir.IsDir() {
+			logDir.Mkdir()
+		}
+
+		fp, err := os.OpenFile(Tea.Root+"/logs/run.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		if err == nil {
+			log.SetOutput(fp)
+		} else {
+			log.Println(err)
+		}
+	}
+
+	logs.Println("starting ...")
 
 	// 下载配置
 	{
@@ -110,7 +159,7 @@ func downloadConfig() error {
 	}
 
 	if respMap.GetInt("code") != 200 {
-		return errors.New("response json code should be 200")
+		return errors.New("invalid response from master:" + string(data))
 	}
 
 	jsonData := respMap.Get("data")
@@ -330,7 +379,7 @@ func pullTasks() error {
 	}
 
 	if respMap.GetInt("code") != 200 {
-		return errors.New("response json code should be 200")
+		return errors.New("invalid response from master:" + string(data))
 	}
 
 	jsonData := respMap.Get("data")
@@ -369,6 +418,127 @@ func pullTasks() error {
 		case "REMOVE_TASK":
 			downloadConfig()
 		}
+	}
+
+	return nil
+}
+
+// 启动
+func onStart() {
+	cmdFile := os.Args[0]
+	cmd := exec.Command(cmdFile, "background")
+	cmd.Dir = Tea.Root
+	err := cmd.Start()
+	if err != nil {
+		logs.Error(err)
+		return
+	}
+
+	failed := false
+	go func() {
+		err = cmd.Wait()
+		if err != nil {
+			logs.Error(err)
+		}
+
+		failed = true
+	}()
+
+	time.Sleep(1 * time.Second)
+	if failed {
+		logs.Println("error: process terminated, lookup 'logs/run.log' for more details")
+	} else {
+		// write pid
+		pidFile := files.NewFile(Tea.Root + "/logs/pid")
+		pidFile.WriteString(fmt.Sprintf("%d", cmd.Process.Pid))
+
+		logs.Println("start success, pid:" + fmt.Sprintf("%d", cmd.Process.Pid))
+	}
+}
+
+// 停止
+func onStop() {
+	pidFile := files.NewFile(Tea.Root + "/logs/pid")
+	pid, err := pidFile.ReadAllString()
+	if err != nil {
+		logs.Println("error:", err.Error())
+	} else {
+		process, err := os.FindProcess(types.Int(pid))
+		if err != nil {
+			logs.Println("error:", err.Error())
+		} else {
+			process.Kill()
+			logs.Println("stopped pid", pid)
+		}
+	}
+}
+
+// 测试连接
+func testConnection() error {
+	master := connectConfig.Master
+	if len(master) == 0 {
+		return errors.New("'master' should not be empty")
+	}
+	req, err := http.NewRequest(http.MethodGet, master+"/api/agent", nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("User-Agent", "TeaWeb Agent")
+	req.Header.Set("Tea-Agent-Id", connectConfig.Id)
+	req.Header.Set("Tea-Agent-Key", connectConfig.Key)
+	client := http.Client{
+		Timeout: 5 * time.Second,
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return errors.New("invalid status response from master '" + fmt.Sprintf("%d", resp.StatusCode) + "'")
+	}
+
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	respMap := maps.Map{}
+	err = json.Unmarshal(data, &respMap)
+	if err != nil {
+		return err
+	}
+
+	if respMap == nil {
+		return errors.New("response data should not be nil")
+	}
+
+	if respMap.GetInt("code") != 200 {
+		return errors.New("invalid response from master:" + string(data))
+	}
+
+	jsonData := respMap.Get("data")
+	if jsonData == nil || reflect.TypeOf(jsonData).Kind() != reflect.Map {
+		return errors.New("response json data should be a map")
+	}
+
+	dataMap := maps.NewMap(jsonData)
+	config := dataMap.GetString("config")
+
+	agent := &agents.AgentConfig{}
+	err = yaml.Unmarshal([]byte(config), agent)
+	if err != nil {
+		return err
+	}
+
+	if len(agent.Id) == 0 {
+		return errors.New("invalid agent id")
+	}
+
+	err = agent.Validate()
+	if err != nil {
+		return err
 	}
 
 	return nil
