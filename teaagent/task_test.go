@@ -10,7 +10,9 @@ import (
 func TestTask_Run(t *testing.T) {
 	config := agents.NewTaskConfig()
 	config.Id = "test"
-	config.Script = `/usr/bin/env bash\n\necho "Hello"`
+	config.Script = `#!/usr/bin/env bash
+
+echo "Hello"`
 	config.Env = []*agents.EnvVariable{
 		{
 			Name:  "name",
@@ -73,4 +75,28 @@ func TestTask_Schedule(t *testing.T) {
 	task := NewTask(config)
 	task.Schedule()
 	time.Sleep(60 * time.Second)
+}
+
+func TestTask_RunLog(t *testing.T) {
+	config := agents.NewTaskConfig()
+	config.Id = "test"
+	config.Script = `#!/usr/bin/env bash
+
+echo "Hello"`
+	config.Env = []*agents.EnvVariable{
+		{
+			Name:  "name",
+			Value: "Tom",
+		},
+	}
+	//config.Cwd = "/home/www"
+
+	task := NewTask(config)
+	err := task.RunLog()
+
+	if err != nil {
+		t.Fatal("err:" + err.Error())
+	}
+
+	time.Sleep(1 * time.Second)
 }

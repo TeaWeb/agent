@@ -1,6 +1,7 @@
 package teaagent
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -14,6 +15,7 @@ import (
 	"github.com/iwind/TeaGo/logs"
 	"github.com/iwind/TeaGo/maps"
 	"github.com/iwind/TeaGo/types"
+	"github.com/syndtr/goleveldb/leveldb"
 	"io/ioutil"
 	"log"
 	"net"
@@ -63,6 +65,71 @@ func Start() {
 		return
 	}
 
+	// 运行某个脚本
+	if lists.Contains(os.Args, "run") {
+		if len(os.Args) <= 2 {
+			logs.Println("no task to run")
+			return
+		}
+
+		taskId := os.Args[2]
+		if len(taskId) == 0 {
+			logs.Println("no task to run")
+			return
+		}
+
+		agent := agents.NewAgentConfigFromId(connectConfig.Id)
+		if agent == nil {
+			logs.Println("agent not found")
+			return
+		}
+		taskConfig := agent.FindTask(taskId)
+		if taskConfig == nil {
+			logs.Println("task not found")
+			return
+		}
+
+		task := NewTask(taskConfig)
+		_, stdout, stderr, err := task.Run()
+		if len(stdout) > 0 {
+			log.Print("stdout:", stdout)
+		}
+		if len(stderr) > 0 {
+			log.Print("stderr:", stderr)
+		}
+		if err != nil {
+			log.Print(err.Error())
+		}
+
+		return
+	}
+
+	// 帮助
+	if lists.ContainsAny(os.Args, "h", "-h", "help", "-help") {
+		fmt.Print(`Usage:
+~~~
+bin/teaweb-agent						
+   run in foreground
+
+bin/teaweb-agent help 					
+   show help
+
+bin/teaweb-agent start 					
+   start agent
+
+bin/teaweb-agent stop 					
+   stop agent
+
+bin/teaweb-agent restart				
+   restart agent
+
+bin/teaweb-agent run [TASK ID]			
+   run task
+~~~
+`)
+		return
+	}
+
 	// 测试连接
 	if lists.Contains(os.Args, "test") {
 		err := testConnection()
@@ -107,9 +174,12 @@ func Start() {
 	// 定时
 	scheduleTasks()
 
-	// 同步数据
+	// 推送日志
+	go pushEvents()
+
+	// 同步配置
 	for {
-		err := pullTasks()
+		err := pullEvents()
 		if err != nil {
 			logs.Println("pull error:", err.Error())
 			time.Sleep(5 * time.Second)
@@ -117,7 +187,7 @@ func Start() {
 	}
 }
 
-// 连接主服务器
+// 下载配置
 func downloadConfig() error {
 	master := connectConfig.Master
 	if len(master) == 0 {
@@ -279,7 +349,7 @@ func scheduleTasks() error {
 
 			// 生成脚本
 			if isChanged {
-				_, err := taskConfig.Generate()
+				_, err := taskConfig.GenerateAgain()
 				if err != nil {
 					return err
 				}
@@ -316,9 +386,8 @@ func scheduleTasks() error {
 }
 
 // 从主服务器同步数据
-func pullTasks() error {
-	logs.Println("pull tasks")
-
+func pullEvents() error {
+	//logs.Println("pull events ...")
 	master := connectConfig.Master
 	if len(master) == 0 {
 		return errors.New("'master' should not be empty")
@@ -417,10 +486,113 @@ func pullTasks() error {
 			downloadConfig()
 		case "REMOVE_TASK":
 			downloadConfig()
+		case "RUN_TASK":
+			eventDataMap := eventMap.GetMap("data")
+			if eventDataMap != nil {
+				taskId := eventDataMap.GetString("taskId")
+				taskConfig := runningAgent.FindTask(taskId)
+				if taskConfig == nil {
+					logs.Println("error:no task with id '" + taskId + "found")
+				} else {
+					task := NewTask(taskConfig)
+					task.RunLog()
+				}
+			} else {
+				logs.Println("invalid event data: should be a map")
+			}
 		}
 	}
 
 	return nil
+}
+
+// 向Master同步事件
+func pushEvents() {
+	db, err := leveldb.OpenFile(Tea.Root+"/logs/leveldb", nil)
+	if err != nil {
+		logs.Println("error:", err.Error())
+	}
+	defer db.Close()
+
+	// 读取本地数据库日志并发送到Master
+	go func() {
+		for {
+			if db == nil {
+				break
+			}
+			iterator := db.NewIterator(nil, nil)
+			for iterator.Next() {
+				value := iterator.Value()
+				req, err := http.NewRequest(http.MethodPut, connectConfig.Master+"/api/agent/push", bytes.NewReader(value))
+				if err != nil {
+					logs.Println("error:", err.Error())
+				} else {
+					func() {
+						req.Header.Set("User-Agent", "TeaWeb Agent")
+						req.Header.Set("Tea-Agent-Id", connectConfig.Id)
+						req.Header.Set("Tea-Agent-Key", connectConfig.Key)
+						client := http.Client{
+							Timeout: 5 * time.Second,
+						}
+						resp, err := client.Do(req)
+
+						if err != nil {
+							logs.Println("error:", err.Error())
+							return
+						}
+						defer resp.Body.Close()
+						if resp.StatusCode != 200 {
+							return
+						}
+
+						respBody, err := ioutil.ReadAll(resp.Body)
+						if err != nil {
+							logs.Println("error:", err.Error())
+							return
+						}
+
+						respJSON := maps.Map{}
+						err = json.Unmarshal(respBody, &respJSON)
+						if err != nil {
+							logs.Println("error:", err.Error())
+							return
+						}
+
+						if respJSON.GetInt("code") != 200 {
+							logs.Println("error response from master:", string(respBody))
+							return
+						}
+						db.Delete(iterator.Key(), nil)
+					}()
+				}
+			}
+			time.Sleep(1 * time.Second)
+		}
+	}()
+
+	// 读取日志并写入到本地数据库
+	logId := time.Now().Unix()
+	for {
+		event := <-eventQueue
+		if event.EventType == ProcessEventStdout || event.EventType == ProcessEventStderr {
+			log.Print("[" + findTaskName(event.TaskId) + "]" + string(event.Data))
+		} else if event.EventType == ProcessEventStart {
+			log.Print("[" + findTaskName(event.TaskId) + "]start")
+		} else if event.EventType == ProcessEventStop {
+			log.Print("[" + findTaskName(event.TaskId) + "]stop")
+		}
+
+		jsonData, err := event.AsJSON()
+		if err != nil {
+			logs.Println("error:", err.Error())
+			continue
+		}
+
+		if db != nil {
+			logId ++
+			db.Put([]byte(fmt.Sprintf("%d", logId)), jsonData, nil)
+		}
+	}
 }
 
 // 启动
@@ -542,4 +714,16 @@ func testConnection() error {
 	}
 
 	return nil
+}
+
+// 查找任务
+func findTaskName(taskId string) string {
+	if runningAgent == nil {
+		return ""
+	}
+	task := runningAgent.FindTask(taskId)
+	if task == nil {
+		return ""
+	}
+	return task.Name
 }

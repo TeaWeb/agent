@@ -25,3 +25,8 @@ bin/teaweb-agent stop
 ~~~bash
 bin/teaweb-agent restart
 ~~~
+
+手动执行任务：
+~~~bash
+bin/teaweb-agent run [TASK ID]
+~~~

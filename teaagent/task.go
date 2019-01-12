@@ -75,6 +75,87 @@ func (this *Task) Run() (proc *Process, stdout string, stderr string, err error)
 	return
 }
 
+// 运行并向Master发送日志
+func (this *Task) RunLog() (err error) {
+	log.Println("run task", this.config.Id, this.config.Name)
+	if this.config == nil {
+		err = errors.New("task config should not be nil")
+		return
+	}
+
+	// shell
+	if len(this.config.Id) == 0 {
+		err = errors.New("id should not be empty")
+		return
+	}
+
+	var shFile string
+	shFile, err = this.config.Generate()
+	if err != nil {
+		return
+	}
+
+	// execute
+	stdout := &StdoutLogWriter{
+		TaskId: this.config.Id,
+	}
+	stderr := &StderrLogWriter{
+		TaskId: this.config.Id,
+	}
+
+	proc := NewProcess()
+	proc.Cwd = this.config.Cwd
+	proc.Env = this.config.Env
+	proc.File = shFile
+	proc.OnStart(func() {
+		stdout.UniqueId = proc.UniqueId
+		stdout.Pid = proc.Pid
+
+		stderr.UniqueId = proc.UniqueId
+		stderr.Pid = proc.Pid
+
+		this.processLocker.Lock()
+		defer this.processLocker.Unlock()
+		this.processes = append(this.processes, proc)
+
+		// 推送事件
+		PushEvent(&ProcessEvent{
+			AgentId:   runningAgent.Id,
+			TaskId:    this.config.Id,
+			UniqueId:  proc.UniqueId,
+			Pid:       proc.Pid,
+			EventType: ProcessEventStart,
+			Data:      "",
+			Timestamp: time.Now().Unix(),
+		})
+	})
+	proc.OnStop(func() {
+		this.processLocker.Lock()
+		defer this.processLocker.Unlock()
+		result := []*Process{}
+		for _, p := range this.processes {
+			if p == proc {
+				continue
+			}
+			result = append(result, p)
+		}
+		this.processes = result
+
+		// 推送事件
+		PushEvent(&ProcessEvent{
+			AgentId:   runningAgent.Id,
+			TaskId:    this.config.Id,
+			UniqueId:  proc.UniqueId,
+			Pid:       proc.Pid,
+			EventType: ProcessEventStop,
+			Data:      "",
+			Timestamp: time.Now().Unix(),
+		})
+	})
+	err = proc.RunWriter(stdout, stderr)
+	return
+}
+
 // 定时运行
 func (this *Task) Schedule(fromTimer ... bool) {
 	now := time.Now()
@@ -87,7 +168,7 @@ func (this *Task) Schedule(fromTimer ... bool) {
 		}
 		if now.Unix() == next.Unix() {
 			if !this.IsRunning() {
-				go this.Run()
+				go this.RunLog()
 			}
 			timers.Delay(1*time.Second, func(timer *time.Timer) {
 				this.Schedule(true)
@@ -105,7 +186,7 @@ func (this *Task) Schedule(fromTimer ... bool) {
 		this.lastTimer = nil
 
 		if !this.IsRunning() {
-			go this.Run()
+			go this.RunLog()
 		}
 		this.Schedule(true)
 	})

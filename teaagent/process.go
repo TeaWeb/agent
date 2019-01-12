@@ -3,11 +3,16 @@ package teaagent
 import (
 	"bytes"
 	"github.com/TeaWeb/code/teaconfigs/agents"
+	"github.com/iwind/TeaGo/utils/string"
+	"io"
 	"os"
 	"os/exec"
 )
 
 type Process struct {
+	UniqueId string
+	Pid      int
+
 	Env  []*agents.EnvVariable
 	Cwd  string
 	File string
@@ -19,7 +24,9 @@ type Process struct {
 
 // 获取新进程
 func NewProcess() *Process {
-	return &Process{}
+	return &Process{
+		UniqueId: stringutil.Rand(16),
+	}
 }
 
 // on start
@@ -34,14 +41,25 @@ func (this *Process) OnStop(f func()) {
 
 // 立即运行
 func (this *Process) Run() (stdout string, stderr string, err error) {
+	stdoutWriter := bytes.NewBuffer([]byte{})
+	stderrWriter := bytes.NewBuffer([]byte{})
+	err = this.RunWriter(stdoutWriter, stderrWriter)
+
+	stdout = stdoutWriter.String()
+	stderr = stderrWriter.String()
+	if this.onStop != nil {
+		this.onStop()
+	}
+
+	return
+}
+
+// 使用自定义stdout, stderr运行
+func (this *Process) RunWriter(stdout io.Writer, stderr io.Writer) (err error) {
 	// execute
 	cmd := exec.Command(this.File)
-
-	outputWriter := bytes.NewBuffer([]byte{})
-	cmd.Stdout = outputWriter
-
-	errorWriter := bytes.NewBuffer([]byte{})
-	cmd.Stderr = errorWriter
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
 
 	// cwd
 	if len(this.Cwd) > 0 {
@@ -54,14 +72,18 @@ func (this *Process) Run() (stdout string, stderr string, err error) {
 	}
 
 	err = cmd.Start()
+	if err != nil {
+		stderr.Write([]byte(err.Error()))
+	}
+	this.proc = cmd.Process
+	if this.proc != nil {
+		this.Pid = this.proc.Pid
+	}
 	if this.onStart != nil {
 		this.onStart()
 	}
-	this.proc = cmd.Process
 	err = cmd.Wait()
 	defer func() {
-		stdout = outputWriter.String()
-		stderr = errorWriter.String()
 		if this.onStop != nil {
 			this.onStop()
 		}
