@@ -21,7 +21,7 @@ echo "Hello"`
 	}
 	//config.Cwd = "/home/www"
 
-	task := NewTask(config)
+	task := NewTask("1", config)
 	proc, stdout, stderr, err := task.Run()
 	t.Log("stdout:", stdout)
 	t.Log("stderr:", stderr)
@@ -45,7 +45,7 @@ func TestTask_RunConcurrent(t *testing.T) {
 	}
 	//config.Cwd = "/home/www"
 
-	task := NewTask(config)
+	task := NewTask("1", config)
 	wg := sync.WaitGroup{}
 	wg.Add(10)
 	for i := 0; i < 10; i ++ {
@@ -72,7 +72,7 @@ func TestTask_Schedule(t *testing.T) {
 	config.AddSchedule(schedule)
 	config.Validate()
 
-	task := NewTask(config)
+	task := NewTask("1", config)
 	task.Schedule()
 	time.Sleep(60 * time.Second)
 }
@@ -91,7 +91,7 @@ echo "Hello"`
 	}
 	//config.Cwd = "/home/www"
 
-	task := NewTask(config)
+	task := NewTask("1", config)
 	err := task.RunLog()
 
 	if err != nil {

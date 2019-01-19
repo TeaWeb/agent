@@ -1,7 +1,7 @@
 package teaagent
 
-var eventQueue = make(chan *ProcessEvent, 1024)
+var eventQueue = make(chan EventInterface, 1024)
 
-func PushEvent(event *ProcessEvent) {
+func PushEvent(event EventInterface) {
 	eventQueue <- event
 }

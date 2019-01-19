@@ -2,13 +2,14 @@ package teaagent
 
 // 日志写入器
 type StdoutLogWriter struct {
+	AppId    string
 	TaskId   string
 	UniqueId string
 	Pid      int
 }
 
 func (this *StdoutLogWriter) Write(p []byte) (n int, err error) {
-	event := NewProcessEvent(ProcessEventStdout, this.TaskId, this.UniqueId, this.Pid, p)
+	event := NewProcessEvent(ProcessEventStdout, this.AppId, this.TaskId, this.UniqueId, this.Pid, p)
 	PushEvent(event)
 
 	n = len(p)
@@ -16,13 +17,14 @@ func (this *StdoutLogWriter) Write(p []byte) (n int, err error) {
 }
 
 type StderrLogWriter struct {
+	AppId    string
 	TaskId   string
 	UniqueId string
 	Pid      int
 }
 
 func (this *StderrLogWriter) Write(p []byte) (n int, err error) {
-	event := NewProcessEvent(ProcessEventStderr, this.TaskId, this.UniqueId, this.Pid, p)
+	event := NewProcessEvent(ProcessEventStderr, this.AppId, this.TaskId, this.UniqueId, this.Pid, p)
 	PushEvent(event)
 
 	n = len(p)

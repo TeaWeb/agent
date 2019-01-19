@@ -12,14 +12,16 @@ import (
 // 任务定义
 type Task struct {
 	config        *agents.TaskConfig
+	appId         string
 	processes     []*Process
 	processLocker sync.Mutex
 	lastTimer     *time.Timer
 }
 
 // 获取新任务
-func NewTask(config *agents.TaskConfig) *Task {
+func NewTask(appId string, config *agents.TaskConfig) *Task {
 	return &Task{
+		appId:  appId,
 		config: config,
 	}
 }
@@ -97,9 +99,11 @@ func (this *Task) RunLog() (err error) {
 
 	// execute
 	stdout := &StdoutLogWriter{
+		AppId:  this.appId,
 		TaskId: this.config.Id,
 	}
 	stderr := &StderrLogWriter{
+		AppId:  this.appId,
 		TaskId: this.config.Id,
 	}
 
@@ -121,6 +125,7 @@ func (this *Task) RunLog() (err error) {
 		// 推送事件
 		PushEvent(&ProcessEvent{
 			AgentId:   runningAgent.Id,
+			AppId:     this.appId,
 			TaskId:    this.config.Id,
 			UniqueId:  proc.UniqueId,
 			Pid:       proc.Pid,
@@ -144,6 +149,7 @@ func (this *Task) RunLog() (err error) {
 		// 推送事件
 		PushEvent(&ProcessEvent{
 			AgentId:   runningAgent.Id,
+			AppId:     this.appId,
 			TaskId:    this.config.Id,
 			UniqueId:  proc.UniqueId,
 			Pid:       proc.Pid,
@@ -157,7 +163,7 @@ func (this *Task) RunLog() (err error) {
 }
 
 // 定时运行
-func (this *Task) Schedule(fromTimer ... bool) {
+func (this *Task) Schedule(fromTimer ...bool) {
 	now := time.Now()
 
 	// 第一次是否运行

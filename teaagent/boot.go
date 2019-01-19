@@ -30,8 +30,10 @@ import (
 
 var connectConfig *teaconfigs.AgentConfig = nil
 var runningAgent *agents.AgentConfig = nil
-var runningTasks = map[string]*Task{}
+var runningTasks = map[string]*Task{} // task id => task
 var runningTasksLocker = sync.Mutex{}
+var runningItems = map[string]*Item{} // item id => task
+var runningItemsLocker = sync.Mutex{}
 var isBooting = true
 
 // 启动
@@ -83,13 +85,13 @@ func Start() {
 			logs.Println("agent not found")
 			return
 		}
-		taskConfig := agent.FindTask(taskId)
+		appConfig, taskConfig := agent.FindTask(taskId)
 		if taskConfig == nil {
 			logs.Println("task not found")
 			return
 		}
 
-		task := NewTask(taskConfig)
+		task := NewTask(appConfig.Id, taskConfig)
 		_, stdout, stderr, err := task.Run()
 		if len(stdout) > 0 {
 			log.Print("stdout:", stdout)
@@ -174,6 +176,9 @@ bin/teaweb-agent run [TASK ID]
 	// 定时
 	scheduleTasks()
 
+	// 监控项数据
+	scheduleItems()
+
 	// 推送日志
 	go pushEvents()
 
@@ -189,6 +194,13 @@ bin/teaweb-agent run [TASK ID]
 
 // 下载配置
 func downloadConfig() error {
+	// 本地
+	if connectConfig.Id == "local" {
+		loadLocalConfig()
+		return nil
+	}
+
+	// 远程的
 	master := connectConfig.Master
 	if len(master) == 0 {
 		return errors.New("'master' should not be empty")
@@ -274,9 +286,35 @@ func downloadConfig() error {
 	connectConfig.Key = agent.Key
 
 	if !isBooting {
+		// 定时任务
 		scheduleTasks()
+
+		// 监控项数据
+		scheduleItems()
 	}
 
+	return nil
+}
+
+// 加载Local配置
+func loadLocalConfig() error {
+	agent := agents.NewAgentConfigFromFile("agent.local.conf")
+	if agent == nil {
+		time.Sleep(30 * time.Second)
+		return loadLocalConfig()
+	}
+	err := agent.Validate()
+	if err != nil {
+		logs.Println("[agent]" + err.Error())
+		time.Sleep(30 * time.Second)
+		return loadLocalConfig()
+	}
+	runningAgent = agent
+	connectConfig.Key = agent.Key
+
+	if !isBooting {
+		return scheduleTasks()
+	}
 	return nil
 }
 
@@ -294,15 +332,9 @@ func bootTasks() {
 			if !taskConfig.On {
 				continue
 			}
-			task := NewTask(taskConfig)
+			task := NewTask(app.Id, taskConfig)
 			if task.ShouldBoot() {
-				_, stdout, stderr, err := task.Run()
-				if len(stdout) > 0 {
-					logs.Println(stdout)
-				}
-				if len(stderr) > 0 {
-					logs.Println(stderr)
-				}
+				err := task.RunLog()
 				if err != nil {
 					logs.Println(err.Error())
 				}
@@ -317,7 +349,13 @@ func scheduleTasks() error {
 	taskIds := []string{}
 
 	for _, app := range runningAgent.Apps {
+		if !app.On {
+			continue
+		}
 		for _, taskConfig := range app.Tasks {
+			if !taskConfig.On {
+				continue
+			}
 			taskIds = append(taskIds, taskConfig.Id)
 
 			// 是否正在运行
@@ -339,7 +377,7 @@ func scheduleTasks() error {
 				}
 			} else if taskConfig.On && len(taskConfig.Schedule) > 0 { // 新任务，则启动
 				logs.Println("schedule task", taskConfig.Id, taskConfig.Name)
-				task := NewTask(taskConfig)
+				task := NewTask(app.Id, taskConfig)
 				task.Schedule()
 
 				runningTasksLocker.Lock()
@@ -360,6 +398,9 @@ func scheduleTasks() error {
 	// 停止运行
 	for taskId, runningTask := range runningTasks {
 		if !lists.Contains(taskIds, taskId) {
+			runningTasksLocker.Lock()
+			delete(runningTasks, taskId)
+			runningTasksLocker.Unlock()
 			err := runningTask.Stop()
 			if err != nil {
 				logs.Error(err)
@@ -381,6 +422,48 @@ func scheduleTasks() error {
 			}
 		}
 	})
+
+	return nil
+}
+
+// 监控数据采集
+func scheduleItems() error {
+	logs.Println("schedule items")
+	itemIds := []string{}
+
+	for _, app := range runningAgent.Apps {
+		if !app.On {
+			continue
+		}
+		for _, itemConfig := range app.Items {
+			if !itemConfig.On {
+				continue
+			}
+			runningItemsLocker.Lock()
+			itemIds = append(itemIds, itemConfig.Id)
+			runningItem, found := runningItems[itemConfig.Id]
+			if found {
+				runningItem.Stop()
+			}
+
+			item := NewItem(app.Id, itemConfig)
+			item.Schedule()
+			runningItems[itemConfig.Id] = item
+			logs.Println("add item", item.config.Name)
+			runningItemsLocker.Unlock()
+		}
+	}
+
+	// 删除不运行的
+	for itemId, item := range runningItems {
+		if !lists.Contains(itemIds, itemId) {
+			item.Stop()
+			runningItemsLocker.Lock()
+			delete(runningItems, itemId)
+			logs.Println("delete item", item.config.Name)
+			runningItemsLocker.Unlock()
+		}
+	}
 
 	return nil
 }
@@ -490,16 +573,22 @@ func pullEvents() error {
 			eventDataMap := eventMap.GetMap("data")
 			if eventDataMap != nil {
 				taskId := eventDataMap.GetString("taskId")
-				taskConfig := runningAgent.FindTask(taskId)
+				appConfig, taskConfig := runningAgent.FindTask(taskId)
 				if taskConfig == nil {
 					logs.Println("error:no task with id '" + taskId + "found")
 				} else {
-					task := NewTask(taskConfig)
+					task := NewTask(appConfig.Id, taskConfig)
 					task.RunLog()
 				}
 			} else {
 				logs.Println("invalid event data: should be a map")
 			}
+		case "ADD_ITEM":
+			downloadConfig()
+		case "UPDATE_ITEM":
+			downloadConfig()
+		case "DELETE_ITEM":
+			downloadConfig()
 		}
 	}
 
@@ -526,6 +615,7 @@ func pushEvents() {
 				req, err := http.NewRequest(http.MethodPut, connectConfig.Master+"/api/agent/push", bytes.NewReader(value))
 				if err != nil {
 					logs.Println("error:", err.Error())
+					time.Sleep(5 * time.Second)
 				} else {
 					func() {
 						req.Header.Set("User-Agent", "TeaWeb Agent")
@@ -559,7 +649,9 @@ func pushEvents() {
 						}
 
 						if respJSON.GetInt("code") != 200 {
-							logs.Println("error response from master:", string(respBody))
+							logs.Println("[/api/agent/push]error response from master:", string(respBody))
+							// 防止不停地提交请求
+							time.Sleep(5 * time.Second)
 							return
 						}
 						db.Delete(iterator.Key(), nil)
@@ -574,12 +666,18 @@ func pushEvents() {
 	logId := time.Now().Unix()
 	for {
 		event := <-eventQueue
-		if event.EventType == ProcessEventStdout || event.EventType == ProcessEventStderr {
-			log.Print("[" + findTaskName(event.TaskId) + "]" + string(event.Data))
-		} else if event.EventType == ProcessEventStart {
-			log.Print("[" + findTaskName(event.TaskId) + "]start")
-		} else if event.EventType == ProcessEventStop {
-			log.Print("[" + findTaskName(event.TaskId) + "]stop")
+
+		if runningAgent.Id != "local" {
+			// 进程事件
+			if event, found := event.(*ProcessEvent); found {
+				if event.EventType == ProcessEventStdout || event.EventType == ProcessEventStderr {
+					log.Print("[" + findTaskName(event.TaskId) + "]" + string(event.Data))
+				} else if event.EventType == ProcessEventStart {
+					log.Print("[" + findTaskName(event.TaskId) + "]start")
+				} else if event.EventType == ProcessEventStop {
+					log.Print("[" + findTaskName(event.TaskId) + "]stop")
+				}
+			}
 		}
 
 		jsonData, err := event.AsJSON()
@@ -721,7 +819,7 @@ func findTaskName(taskId string) string {
 	if runningAgent == nil {
 		return ""
 	}
-	task := runningAgent.FindTask(taskId)
+	_, task := runningAgent.FindTask(taskId)
 	if task == nil {
 		return ""
 	}
