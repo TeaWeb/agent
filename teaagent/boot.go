@@ -35,9 +35,12 @@ var runningTasksLocker = sync.Mutex{}
 var runningItems = map[string]*Item{} // item id => task
 var runningItemsLocker = sync.Mutex{}
 var isBooting = true
+var connectionIsBroken = false
 
 // 启动
 func Start() {
+	logs.Println("agent booting ...")
+
 	// 连接配置
 	{
 		config, err := teaconfigs.SharedAgentConfig()
@@ -158,7 +161,7 @@ bin/teaweb-agent run [TASK ID]
 		}
 	}
 
-	logs.Println("starting ...")
+	logs.Println("agent starting ...")
 
 	// 下载配置
 	{
@@ -170,14 +173,21 @@ bin/teaweb-agent run [TASK ID]
 	}
 
 	// 启动
+	logs.Println("agent boot tasks ...")
 	bootTasks()
 	isBooting = false
 
 	// 定时
+	logs.Println("agent schedule tasks ...")
 	scheduleTasks()
 
 	// 监控项数据
+	logs.Println("agent schedule items ...")
 	scheduleItems()
+
+	// 检测Apps
+	logs.Println("agent detect tasks ...")
+	detectApps()
 
 	// 推送日志
 	go pushEvents()
@@ -192,11 +202,17 @@ bin/teaweb-agent run [TASK ID]
 	}
 }
 
+// 初始化连接
+func initConnection() {
+	detectApps()
+}
+
 // 下载配置
 func downloadConfig() error {
 	// 本地
 	if connectConfig.Id == "local" {
 		loadLocalConfig()
+
 		return nil
 	}
 
@@ -300,6 +316,13 @@ func downloadConfig() error {
 func loadLocalConfig() error {
 	agent := agents.NewAgentConfigFromFile("agent.local.conf")
 	if agent == nil {
+		err := agents.LocalAgentConfig().Save()
+		if err != nil {
+			logs.Println("[agent]" + err.Error())
+		} else {
+			return loadLocalConfig()
+		}
+
 		time.Sleep(30 * time.Second)
 		return loadLocalConfig()
 	}
@@ -313,7 +336,11 @@ func loadLocalConfig() error {
 	connectConfig.Key = agent.Key
 
 	if !isBooting {
-		return scheduleTasks()
+		// 定时任务
+		scheduleTasks()
+
+		// 监控项数据
+		scheduleItems()
 	}
 	return nil
 }
@@ -411,14 +438,16 @@ func scheduleTasks() error {
 	// 删除不存在的任务脚本
 	files.NewFile(Tea.ConfigFile("agents/")).Range(func(file *files.File) {
 		filename := file.Name()
-		if !regexp.MustCompile("^task\\.\\w+\\.script$").MatchString(filename) {
-			return
-		}
-		taskId := filename[len("task:") : len(filename)-len(".script")]
-		if !lists.Contains(taskIds, taskId) {
-			err := file.Delete()
-			if err != nil {
-				logs.Error(err)
+
+		for _, ext := range []string{"script", "bat"} {
+			if regexp.MustCompile("^task\\.\\w+\\." + ext + "$").MatchString(filename) {
+				taskId := filename[len("task:") : len(filename)-len("."+ext)]
+				if !lists.Contains(taskIds, taskId) {
+					err := file.Delete()
+					if err != nil {
+						logs.Error(err)
+					}
+				}
 			}
 		}
 	})
@@ -468,6 +497,17 @@ func scheduleItems() error {
 	return nil
 }
 
+// 检测App
+func detectApps() {
+	probe := NewSystemAppsProbe()
+	probe.Run()
+	apps := probe.apps
+
+	event := NewSystemAppsEvent()
+	event.Apps = apps
+	PushEvent(event)
+}
+
 // 从主服务器同步数据
 func pullEvents() error {
 	//logs.Println("pull events ...")
@@ -495,6 +535,12 @@ func pullEvents() error {
 				}).DialContext(ctx, network, addr)
 				if err != nil {
 					connectingFailed = true
+				} else {
+					// 恢复连接
+					if connectionIsBroken {
+						connectionIsBroken = false
+						initConnection()
+					}
 				}
 				return conn, err
 			},
@@ -503,7 +549,14 @@ func pullEvents() error {
 	resp, err := client.Do(req)
 	if err != nil {
 		if connectingFailed {
+			connectionIsBroken = true
 			return err
+		}
+
+		// 恢复连接
+		if connectionIsBroken {
+			connectionIsBroken = false
+			initConnection()
 		}
 
 		// 如果是超时的则不提示，因为长连接依赖超时设置
@@ -513,6 +566,12 @@ func pullEvents() error {
 
 	if resp.StatusCode != http.StatusOK {
 		return errors.New("invalid status response from master '" + fmt.Sprintf("%d", resp.StatusCode) + "'")
+	}
+
+	// 恢复连接
+	if connectionIsBroken {
+		connectionIsBroken = false
+		initConnection()
 	}
 
 	data, err := ioutil.ReadAll(resp.Body)
@@ -610,14 +669,14 @@ func pushEvents() {
 				break
 			}
 			iterator := db.NewIterator(nil, nil)
+
 			for iterator.Next() {
 				value := iterator.Value()
 				req, err := http.NewRequest(http.MethodPut, connectConfig.Master+"/api/agent/push", bytes.NewReader(value))
 				if err != nil {
 					logs.Println("error:", err.Error())
-					time.Sleep(5 * time.Second)
 				} else {
-					func() {
+					err = func() error {
 						req.Header.Set("User-Agent", "TeaWeb Agent")
 						req.Header.Set("Tea-Agent-Id", connectConfig.Id)
 						req.Header.Set("Tea-Agent-Key", connectConfig.Key)
@@ -628,34 +687,37 @@ func pushEvents() {
 
 						if err != nil {
 							logs.Println("error:", err.Error())
-							return
+							return err
 						}
 						defer resp.Body.Close()
 						if resp.StatusCode != 200 {
-							return
+							return errors.New("")
 						}
 
 						respBody, err := ioutil.ReadAll(resp.Body)
 						if err != nil {
 							logs.Println("error:", err.Error())
-							return
+							return err
 						}
 
 						respJSON := maps.Map{}
 						err = json.Unmarshal(respBody, &respJSON)
 						if err != nil {
 							logs.Println("error:", err.Error())
-							return
+							return err
 						}
 
 						if respJSON.GetInt("code") != 200 {
 							logs.Println("[/api/agent/push]error response from master:", string(respBody))
-							// 防止不停地提交请求
-							time.Sleep(5 * time.Second)
-							return
+							return err
 						}
 						db.Delete(iterator.Key(), nil)
+						return nil
 					}()
+					if err != nil {
+						time.Sleep(5 * time.Second)
+						break
+					}
 				}
 			}
 			time.Sleep(1 * time.Second)

@@ -18,7 +18,7 @@ func main() {
 	p.Site = "https://github.com/TeaWeb/agent"
 	p.Description = "代理插件"
 	p.OnStart(func() {
-		timers.Delay(10*time.Second, func(timer *time.Timer) {
+		timers.Delay(5*time.Second, func(timer *time.Timer) {
 			teaagent.Start()
 		})
 	})
