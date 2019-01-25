@@ -90,20 +90,37 @@ func Start() {
 		}
 		appConfig, taskConfig := agent.FindTask(taskId)
 		if taskConfig == nil {
-			logs.Println("task not found")
+			// 查找Item
+			appConfig, itemConfig := agent.FindItem(taskId)
+			if itemConfig == nil {
+				logs.Println("task or item not found")
+			} else {
+				err := itemConfig.Validate()
+				if err != nil {
+					logs.Println("error:" + err.Error())
+				} else {
+					item := NewItem(appConfig.Id, itemConfig)
+					v, err := item.Run()
+					if err != nil {
+						logs.Println("error:" + err.Error())
+					} else {
+						logs.Println("value:", v)
+					}
+				}
+			}
 			return
 		}
 
 		task := NewTask(appConfig.Id, taskConfig)
 		_, stdout, stderr, err := task.Run()
 		if len(stdout) > 0 {
-			log.Print("stdout:", stdout)
+			logs.Println("stdout:", stdout)
 		}
 		if len(stderr) > 0 {
-			log.Print("stderr:", stderr)
+			logs.Println("stderr:", stderr)
 		}
 		if err != nil {
-			log.Print(err.Error())
+			logs.Println(err.Error())
 		}
 
 		return
@@ -128,8 +145,11 @@ bin/teaweb-agent stop
 bin/teaweb-agent restart				
    restart agent
 
-bin/teaweb-agent run [TASK ID]			
+bin/teaweb-agent run [TASK ID]		
    run task
+
+bin/teaweb-agent run [ITEM ID]		
+   run monitor item
 ~~~
 `)
 		return
@@ -157,7 +177,7 @@ bin/teaweb-agent run [TASK ID]
 		if err == nil {
 			log.SetOutput(fp)
 		} else {
-			log.Println(err)
+			logs.Println(err)
 		}
 	}
 
@@ -733,11 +753,11 @@ func pushEvents() {
 			// 进程事件
 			if event, found := event.(*ProcessEvent); found {
 				if event.EventType == ProcessEventStdout || event.EventType == ProcessEventStderr {
-					log.Print("[" + findTaskName(event.TaskId) + "]" + string(event.Data))
+					logs.Println("[" + findTaskName(event.TaskId) + "]" + string(event.Data))
 				} else if event.EventType == ProcessEventStart {
-					log.Print("[" + findTaskName(event.TaskId) + "]start")
+					logs.Println("[" + findTaskName(event.TaskId) + "]start")
 				} else if event.EventType == ProcessEventStop {
-					log.Print("[" + findTaskName(event.TaskId) + "]stop")
+					logs.Println("[" + findTaskName(event.TaskId) + "]stop")
 				}
 			}
 		}

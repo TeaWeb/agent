@@ -3,8 +3,8 @@ package teaagent
 import (
 	"errors"
 	"github.com/TeaWeb/code/teaconfigs/agents"
+	"github.com/iwind/TeaGo/logs"
 	"github.com/iwind/TeaGo/timers"
-	"log"
 	"sync"
 	"time"
 )
@@ -33,7 +33,7 @@ func (this *Task) ShouldBoot() bool {
 
 // 立即运行
 func (this *Task) Run() (proc *Process, stdout string, stderr string, err error) {
-	log.Println("run task", this.config.Id, this.config.Name)
+	logs.Println("run task", this.config.Id, this.config.Name)
 	if this.config == nil {
 		err = errors.New("task config should not be nil")
 		return
@@ -79,7 +79,7 @@ func (this *Task) Run() (proc *Process, stdout string, stderr string, err error)
 
 // 运行并向Master发送日志
 func (this *Task) RunLog() (err error) {
-	log.Println("run task", this.config.Id, this.config.Name)
+	logs.Println("run task", this.config.Id, this.config.Name)
 	if this.config == nil {
 		err = errors.New("task config should not be nil")
 		return

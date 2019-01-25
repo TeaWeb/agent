@@ -13,7 +13,6 @@ import (
 	"github.com/shirou/gopsutil/load"
 	"github.com/shirou/gopsutil/mem"
 	"github.com/shirou/gopsutil/net"
-	"log"
 	"math"
 	"runtime"
 	"strings"
@@ -55,7 +54,7 @@ func (this *SystemAppsProbe) AddApp(app *agents.AppConfig) {
 }
 
 func (this *SystemAppsProbe) Run() {
-	log.Println("run system apps probe")
+	logs.Println("run system apps probe")
 	this.runCPU()
 	this.runLoad()
 	this.runMemory()
@@ -528,7 +527,7 @@ var chart = new charts.StackBarChart();
 chart.values = [];
 chart.labels = [];
 
-var latest = new values.Query().cache(60).latest(1);
+var latest = new values.Query().cache(120).latest(1);
 if (latest.length > 0) {
 	var partitions = latest[0].value;
 	partitions.$each(function (k, v) {
@@ -604,7 +603,6 @@ var chart = new charts.Clock();
 var latest = new values.Query().latest(1);
 if (latest.length > 0) {
 	chart.timestamp = latest[0].value.timestamp;
-	console.log(chart.timestamp);
 }
 chart.render();
 `,

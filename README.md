@@ -26,7 +26,12 @@ bin/teaweb-agent stop
 bin/teaweb-agent restart
 ~~~
 
-手动执行任务：
+手动执行某个任务：
 ~~~bash
 bin/teaweb-agent run [TASK ID]
+~~~
+
+手动执行某个监控项数据源程序：
+~~~bash
+bin/teaweb-agent run [ITEM ID]
 ~~~

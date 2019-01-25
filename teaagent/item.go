@@ -22,6 +22,11 @@ func NewItem(appId string, config *agents.Item) *Item {
 	}
 }
 
+// 运行一次
+func (this *Item) Run() (value interface{}, err error) {
+	return this.config.Source().Execute(nil)
+}
+
 // 定时运行
 func (this *Item) Schedule() {
 	if this.lastTimer != nil {
