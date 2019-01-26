@@ -128,7 +128,7 @@ chart.render();
 		if err != nil || len(stat) == 0 {
 			return
 		}
-		PushEvent(NewItemEvent(runningAgent.Id, this.systemApp.Id, item.Id, math.Round(stat[0])))
+		PushEvent(NewItemEvent(runningAgent.Id, this.systemApp.Id, item.Id, math.Round(stat[0]), nil))
 	})
 }
 
@@ -247,7 +247,7 @@ chart.render();
 			"swapUsed":       float64(swap.Used) / 1024 / 1024 / 1024,
 			"swapPercent":    swap.UsedPercent,
 			"swapTotal":      float64(swap.Total) / 1024 / 1024 / 1024,
-		}))
+		}, nil))
 	})
 }
 
@@ -367,7 +367,7 @@ chart.render();
 			"load1":  stat.Load1,
 			"load5":  stat.Load5,
 			"load15": stat.Load15,
-		}))
+		}, nil))
 	})
 }
 
@@ -499,7 +499,7 @@ chart.render();
 		PushEvent(NewItemEvent(runningAgent.Id, this.systemApp.Id, item.Id, maps.Map{
 			"avgSent":     countSent / uint64(duration),
 			"avgReceived": countReceived / uint64(duration),
-		}))
+		}, nil))
 
 		lastTotalSent = totalSent
 		lastTotalReceived = totalReceived
@@ -578,7 +578,7 @@ chart.render();
 			})
 		}
 
-		PushEvent(NewItemEvent(runningAgent.Id, this.systemApp.Id, item.Id, result))
+		PushEvent(NewItemEvent(runningAgent.Id, this.systemApp.Id, item.Id, result, nil))
 	})
 }
 
@@ -617,7 +617,7 @@ chart.render();
 	this.clockTicker = this.every(60*time.Second, func() {
 		PushEvent(NewItemEvent(runningAgent.Id, this.systemApp.Id, item.Id, maps.Map{
 			"timestamp": time.Now().Unix(),
-		}))
+		}, nil))
 	})
 }
 

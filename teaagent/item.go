@@ -39,7 +39,9 @@ func (this *Item) Schedule() {
 		}
 
 		if value != nil {
-			PushEvent(NewItemEvent(runningAgent.Id, this.appId, this.config.Id, value))
+			PushEvent(NewItemEvent(runningAgent.Id, this.appId, this.config.Id, value, err))
+		} else {
+			PushEvent(NewItemEvent(runningAgent.Id, this.appId, this.config.Id, "", err))
 		}
 	})
 }
