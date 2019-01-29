@@ -2,6 +2,7 @@ package teaagent
 
 import (
 	"github.com/TeaWeb/code/teaconfigs/agents"
+	"github.com/TeaWeb/code/teaconfigs/shared"
 	"sync"
 	"testing"
 	"time"
@@ -13,7 +14,7 @@ func TestTask_Run(t *testing.T) {
 	config.Script = `#!/usr/bin/env bash
 
 echo "Hello"`
-	config.Env = []*agents.EnvVariable{
+	config.Env = []*shared.EnvVariable{
 		{
 			Name:  "name",
 			Value: "Tom",
@@ -37,7 +38,7 @@ func TestTask_RunConcurrent(t *testing.T) {
 	config := agents.NewTaskConfig()
 	config.Id = "test"
 	config.Script = `/usr/bin/env bash\n\necho "Hello"`
-	config.Env = []*agents.EnvVariable{
+	config.Env = []*shared.EnvVariable{
 		{
 			Name:  "name",
 			Value: "Tom",
@@ -83,7 +84,7 @@ func TestTask_RunLog(t *testing.T) {
 	config.Script = `#!/usr/bin/env bash
 
 echo "Hello"`
-	config.Env = []*agents.EnvVariable{
+	config.Env = []*shared.EnvVariable{
 		{
 			Name:  "name",
 			Value: "Tom",

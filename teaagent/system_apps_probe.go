@@ -3,6 +3,7 @@ package teaagent
 import (
 	"fmt"
 	"github.com/TeaWeb/code/teaconfigs/agents"
+	"github.com/TeaWeb/code/teaconfigs/notices"
 	"github.com/TeaWeb/code/teaconfigs/widgets"
 	"github.com/iwind/TeaGo/lists"
 	"github.com/iwind/TeaGo/logs"
@@ -76,7 +77,7 @@ func (this *SystemAppsProbe) runCPU() {
 	threshold1 := agents.NewThreshold()
 	threshold1.Param = "${0}"
 	threshold1.Value = "80"
-	threshold1.NoticeLevel = agents.NoticeLevelWarning
+	threshold1.NoticeLevel = notices.NoticeLevelWarning
 	threshold1.Operator = agents.ThresholdOperatorGte
 	item.AddThreshold(threshold1)
 
@@ -145,7 +146,7 @@ func (this *SystemAppsProbe) runMemory() {
 		threshold1 := agents.NewThreshold()
 		threshold1.Param = "${virtualPercent}"
 		threshold1.Value = "80"
-		threshold1.NoticeLevel = agents.NoticeLevelWarning
+		threshold1.NoticeLevel = notices.NoticeLevelWarning
 		threshold1.Operator = agents.ThresholdOperatorGte
 		item.AddThreshold(threshold1)
 	}
@@ -268,7 +269,7 @@ func (this *SystemAppsProbe) runLoad() {
 		threshold1 := agents.NewThreshold()
 		threshold1.Param = "${load5}"
 		threshold1.Value = "10"
-		threshold1.NoticeLevel = agents.NoticeLevelWarning
+		threshold1.NoticeLevel = notices.NoticeLevelWarning
 		threshold1.Operator = agents.ThresholdOperatorGte
 		item.AddThreshold(threshold1)
 	}
@@ -277,7 +278,7 @@ func (this *SystemAppsProbe) runLoad() {
 		threshold2 := agents.NewThreshold()
 		threshold2.Param = "${load5}"
 		threshold2.Value = "20"
-		threshold2.NoticeLevel = agents.NoticeLevelWarning
+		threshold2.NoticeLevel = notices.NoticeLevelWarning
 		threshold2.Operator = agents.ThresholdOperatorGte
 		item.AddThreshold(threshold2)
 	}
@@ -326,7 +327,7 @@ var lines = [];
 	lines.push(line);
 }
 
-var maxValue = 10;
+var maxValue = 1;
 
 ones.$each(function (k, v) {
 	lines[0].values.push(v.value.load1);
@@ -334,13 +335,13 @@ ones.$each(function (k, v) {
 	lines[2].values.push(v.value.load15);
 
 	if (v.value.load1 > maxValue) {
-		maxValue = Math.ceil(v.value.load1 / 10) * 10;
+		maxValue = Math.ceil(v.value.load1 / 2) * 2;
 	}
 	if (v.value.load5 > maxValue) {
-		maxValue = Math.ceil(v.value.load5 / 10) * 10;
+		maxValue = Math.ceil(v.value.load5 / 2) * 2;
 	}
 	if (v.value.load15 > maxValue) {
-		maxValue = Math.ceil(v.value.load15 / 10) * 10;
+		maxValue = Math.ceil(v.value.load15 / 2) * 2;
 	}
 	
 	var minute = v.timeFormat.minute.substring(8);

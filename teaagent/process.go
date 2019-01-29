@@ -2,7 +2,7 @@ package teaagent
 
 import (
 	"bytes"
-	"github.com/TeaWeb/code/teaconfigs/agents"
+	"github.com/TeaWeb/code/teaconfigs/shared"
 	"github.com/iwind/TeaGo/utils/string"
 	"io"
 	"os"
@@ -13,7 +13,7 @@ type Process struct {
 	UniqueId string
 	Pid      int
 
-	Env  []*agents.EnvVariable
+	Env  []*shared.EnvVariable
 	Cwd  string
 	File string
 
