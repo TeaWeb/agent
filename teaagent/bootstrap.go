@@ -24,6 +24,7 @@ import (
 	"os/exec"
 	"reflect"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 )
@@ -691,6 +692,22 @@ func pushEvents() {
 			iterator := db.NewIterator(nil, nil)
 
 			for iterator.Next() {
+				key := string(iterator.Key())
+
+				// 时间如果超过72小时就自动删除
+				keyPieces := strings.Split(key, "_")
+				if len(keyPieces) == 2 {
+					timestamp := types.Int64(keyPieces[0])
+					if time.Now().Unix()-timestamp >= 3*24*86400 {
+						err := db.Delete(iterator.Key(), nil)
+						if err != nil {
+							logs.Error(err)
+						}
+						continue
+					}
+				}
+
+				// Push到Master服务器
 				value := iterator.Value()
 				req, err := http.NewRequest(http.MethodPut, connectConfig.Master+"/api/agent/push", bytes.NewReader(value))
 				if err != nil {
@@ -731,7 +748,10 @@ func pushEvents() {
 							logs.Println("[/api/agent/push]error response from master:", string(respBody))
 							return err
 						}
-						db.Delete(iterator.Key(), nil)
+						err = db.Delete(iterator.Key(), nil)
+						if err != nil {
+							logs.Error(err)
+						}
 						return nil
 					}()
 					if err != nil {
@@ -745,7 +765,7 @@ func pushEvents() {
 	}()
 
 	// 读取日志并写入到本地数据库
-	logId := time.Now().Unix()
+	logId := time.Now().UnixNano()
 	for {
 		event := <-eventQueue
 
@@ -770,7 +790,7 @@ func pushEvents() {
 
 		if db != nil {
 			logId ++
-			db.Put([]byte(fmt.Sprintf("%d", logId)), jsonData, nil)
+			db.Put([]byte(fmt.Sprintf("%d_%d", time.Now().Unix(), logId)), jsonData, nil)
 		}
 	}
 }
