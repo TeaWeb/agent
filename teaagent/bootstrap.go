@@ -677,7 +677,7 @@ func pullEvents() error {
 
 // 向Master同步事件
 func pushEvents() {
-	db, err := leveldb.OpenFile(Tea.Root+"/logs/leveldb", nil)
+	db, err := leveldb.OpenFile(Tea.Root+"/logs/agent.leveldb", nil)
 	if err != nil {
 		logs.Println("error:", err.Error())
 	}
@@ -760,6 +760,8 @@ func pushEvents() {
 					}
 				}
 			}
+			
+			iterator.Release()
 			time.Sleep(1 * time.Second)
 		}
 	}()
