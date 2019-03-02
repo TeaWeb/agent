@@ -519,10 +519,10 @@ func scheduleItems() error {
 }
 
 // 检测App
+var appsProbe = NewSystemAppsProbe()
 func detectApps() {
-	probe := NewSystemAppsProbe()
-	probe.Run()
-	apps := probe.apps
+	appsProbe.Run()
+	apps := appsProbe.apps
 
 	event := NewSystemAppsEvent()
 	event.Apps = apps
@@ -760,7 +760,7 @@ func pushEvents() {
 					}
 				}
 			}
-			
+
 			iterator.Release()
 			time.Sleep(1 * time.Second)
 		}

@@ -56,6 +56,8 @@ func (this *SystemAppsProbe) AddApp(app *agents.AppConfig) {
 
 func (this *SystemAppsProbe) Run() {
 	logs.Println("run system apps probe")
+	this.systemApp.Items = []*agents.Item{}
+
 	this.runCPU()
 	this.runLoad()
 	this.runMemory()
@@ -125,7 +127,7 @@ chart.render();
 		this.cpuTicker.Stop()
 	}
 	this.cpuTicker = this.every(60*time.Second, func() {
-		stat, err := cpu.Percent(1*time.Second, false)
+		stat, err := cpu.Percent(5*time.Second, false)
 		if err != nil || len(stat) == 0 {
 			return
 		}
