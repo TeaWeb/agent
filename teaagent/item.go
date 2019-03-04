@@ -38,6 +38,24 @@ func (this *Item) Schedule() {
 			logs.Println("error:" + err.Error())
 		}
 
+		// 执行动作
+		for _, threshold := range this.config.Thresholds {
+			if len(threshold.Actions) == 0 {
+				continue
+			}
+			if threshold.Test(value) {
+				logs.Println("run " + this.config.Name + " [" + threshold.Param + " " + threshold.Operator + " " + threshold.Value + "] actions")
+				err1 := threshold.RunActions(map[string]string{})
+				if err1 != nil {
+					logs.Println("error:" + err1.Error())
+
+					if err == nil {
+						err = err1
+					}
+				}
+			}
+		}
+
 		if value != nil {
 			PushEvent(NewItemEvent(runningAgent.Id, this.appId, this.config.Id, value, err))
 		} else {
