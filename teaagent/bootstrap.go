@@ -16,6 +16,7 @@ import (
 	"github.com/iwind/TeaGo/maps"
 	"github.com/iwind/TeaGo/types"
 	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/util"
 	"io/ioutil"
 	"log"
 	"net"
@@ -520,6 +521,7 @@ func scheduleItems() error {
 
 // 检测App
 var appsProbe = NewSystemAppsProbe()
+
 func detectApps() {
 	appsProbe.Run()
 	apps := appsProbe.apps
@@ -683,27 +685,37 @@ func pushEvents() {
 	}
 	defer db.Close()
 
+	// compact db
+	err = db.CompactRange(*util.BytesPrefix([]byte("log.")))
+	if err != nil {
+		logs.Println("error:", err.Error())
+	}
+
 	// 读取本地数据库日志并发送到Master
 	go func() {
 		for {
 			if db == nil {
 				break
 			}
-			iterator := db.NewIterator(nil, nil)
+			iterator := db.NewIterator(util.BytesPrefix([]byte("log.")), nil)
 
 			for iterator.Next() {
-				key := string(iterator.Key())
+				key := iterator.Key()
+				keyString := string(key)
 
 				// 时间如果超过72小时就自动删除
-				keyPieces := strings.Split(key, "_")
+				keyPieces := strings.Split(keyString, ".")
 				if len(keyPieces) == 2 {
-					timestamp := types.Int64(keyPieces[0])
-					if time.Now().Unix()-timestamp >= 3*24*86400 {
-						err := db.Delete(iterator.Key(), nil)
-						if err != nil {
-							logs.Error(err)
+					timePieces := strings.Split(keyPieces[1], "_")
+					if len(timePieces) == 2 {
+						timestamp := types.Int64(timePieces[0])
+						if time.Now().Unix()-timestamp >= 3*24*86400 {
+							err := db.Delete(key, nil)
+							if err != nil {
+								logs.Error(err)
+							}
+							continue
 						}
-						continue
 					}
 				}
 
@@ -748,7 +760,7 @@ func pushEvents() {
 							logs.Println("[/api/agent/push]error response from master:", string(respBody))
 							return err
 						}
-						err = db.Delete(iterator.Key(), nil)
+						err = db.Delete(key, nil)
 						if err != nil {
 							logs.Error(err)
 						}
@@ -792,7 +804,7 @@ func pushEvents() {
 
 		if db != nil {
 			logId ++
-			db.Put([]byte(fmt.Sprintf("%d_%d", time.Now().Unix(), logId)), jsonData, nil)
+			db.Put([]byte(fmt.Sprintf("log.%d_%d", time.Now().Unix(), logId)), jsonData, nil)
 		}
 	}
 }
