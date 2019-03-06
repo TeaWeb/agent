@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/TeaWeb/agent/teaconfigs"
 	"github.com/TeaWeb/code/teaconfigs/agents"
+	"github.com/TeaWeb/code/teaconst"
 	"github.com/go-yaml/yaml"
 	"github.com/iwind/TeaGo/Tea"
 	"github.com/iwind/TeaGo/files"
@@ -545,6 +546,7 @@ func pullEvents() error {
 	req.Header.Set("User-Agent", "TeaWeb Agent")
 	req.Header.Set("Tea-Agent-Id", connectConfig.Id)
 	req.Header.Set("Tea-Agent-Key", connectConfig.Key)
+	req.Header.Set("Tea-Agent-Version", teaconst.TeaVersion)
 	connectingFailed := false
 	client := http.Client{
 		Timeout: 60 * time.Second,
