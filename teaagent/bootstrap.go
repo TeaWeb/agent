@@ -15,7 +15,10 @@ import (
 	"github.com/iwind/TeaGo/lists"
 	"github.com/iwind/TeaGo/logs"
 	"github.com/iwind/TeaGo/maps"
+	"github.com/iwind/TeaGo/processes"
+	"github.com/iwind/TeaGo/timers"
 	"github.com/iwind/TeaGo/types"
+	"github.com/iwind/TeaGo/utils/string"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"
 	"io/ioutil"
@@ -26,6 +29,7 @@ import (
 	"os/exec"
 	"reflect"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -42,6 +46,11 @@ var connectionIsBroken = false
 
 // 启动
 func Start() {
+	// 检查新版本
+	if shouldStartNewVersion() {
+		return
+	}
+
 	logs.Println("agent booting ...")
 
 	// 连接配置
@@ -211,6 +220,9 @@ bin/teaweb-agent run [ITEM ID]
 	// 检测Apps
 	logs.Println("agent detect tasks ...")
 	detectApps()
+
+	// 检查更新
+	checkNewVersion()
 
 	// 推送日志
 	go pushEvents()
@@ -547,6 +559,8 @@ func pullEvents() error {
 	req.Header.Set("Tea-Agent-Id", connectConfig.Id)
 	req.Header.Set("Tea-Agent-Key", connectConfig.Key)
 	req.Header.Set("Tea-Agent-Version", teaconst.TeaVersion)
+	req.Header.Set("Tea-Agent-Os", runtime.GOOS)
+	req.Header.Set("Tea-Agent-Arch", runtime.GOARCH)
 	connectingFailed := false
 	client := http.Client{
 		Timeout: 60 * time.Second,
@@ -680,11 +694,15 @@ func pullEvents() error {
 }
 
 // 向Master同步事件
+var levelDB *leveldb.DB = nil
+
 func pushEvents() {
 	db, err := leveldb.OpenFile(Tea.Root+"/logs/agent.leveldb", nil)
 	if err != nil {
 		logs.Println("error:", err.Error())
+		return
 	}
+	levelDB = db
 	defer db.Close()
 
 	// compact db
@@ -731,6 +749,9 @@ func pushEvents() {
 						req.Header.Set("User-Agent", "TeaWeb Agent")
 						req.Header.Set("Tea-Agent-Id", connectConfig.Id)
 						req.Header.Set("Tea-Agent-Key", connectConfig.Key)
+						req.Header.Set("Tea-Agent-Version", teaconst.TeaVersion)
+						req.Header.Set("Tea-Agent-Os", runtime.GOOS)
+						req.Header.Set("Tea-Agent-Arch", runtime.GOARCH)
 						client := http.Client{
 							Timeout: 5 * time.Second,
 						}
@@ -874,6 +895,9 @@ func testConnection() error {
 	req.Header.Set("User-Agent", "TeaWeb Agent")
 	req.Header.Set("Tea-Agent-Id", connectConfig.Id)
 	req.Header.Set("Tea-Agent-Key", connectConfig.Key)
+	req.Header.Set("Tea-Agent-Version", teaconst.TeaVersion)
+	req.Header.Set("Tea-Agent-Os", runtime.GOOS)
+	req.Header.Set("Tea-Agent-Arch", runtime.GOARCH)
 	client := http.Client{
 		Timeout: 5 * time.Second,
 	}
@@ -942,4 +966,119 @@ func findTaskName(taskId string) string {
 		return ""
 	}
 	return task.Name
+}
+
+// 检查是否启动新版本
+func shouldStartNewVersion() bool {
+	fileList := files.NewFile(Tea.Root + "/bin/upgrade/").List()
+	latestVersion := teaconst.TeaVersion
+	for _, f := range fileList {
+		filename := f.Name()
+		index := strings.Index(filename, "@")
+		if index <= 0 {
+			continue
+		}
+		version := strings.Replace(filename[index+1:], ".exe", "", -1)
+		if stringutil.VersionCompare(latestVersion, version) < 0 {
+			process := processes.NewProcess(Tea.Root+Tea.DS+"bin"+Tea.DS+"upgrade"+Tea.DS+filename, os.Args[1:]...)
+			err := process.Start()
+			if err != nil {
+				logs.Println("[error]", err.Error())
+				return false
+			}
+
+			err = process.Wait()
+			if err != nil {
+				logs.Println("[error]", err.Error())
+				return false
+			}
+
+			return true
+		}
+	}
+	return false
+}
+
+// 检查更新
+func checkNewVersion() {
+	timers.Loop(10*time.Second, func(looper *timers.Looper) {
+		logs.Println("check new version")
+		req, err := http.NewRequest(http.MethodGet, connectConfig.Master+"/api/agent/upgrade", nil)
+		if err != nil {
+			logs.Println("error:", err.Error())
+			return
+		}
+		req.Header.Set("User-Agent", "TeaWeb Agent")
+		req.Header.Set("Tea-Agent-Id", connectConfig.Id)
+		req.Header.Set("Tea-Agent-Key", connectConfig.Key)
+		req.Header.Set("Tea-Agent-Version", teaconst.TeaVersion)
+		req.Header.Set("Tea-Agent-Os", runtime.GOOS)
+		req.Header.Set("Tea-Agent-Arch", runtime.GOARCH)
+
+		client := &http.Client{
+			Timeout: 60 * time.Second,
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			logs.Println("error:", err.Error())
+			return
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			logs.Println("error:status code not", http.StatusOK)
+			return
+		}
+
+		data, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			logs.Println("error:", err.Error())
+			return
+		}
+
+		if len(data) > 1024 {
+			dir := Tea.Root + Tea.DS + "bin" + Tea.DS + "upgrade"
+			dirFile := files.NewFile(dir)
+			if !dirFile.Exists() {
+				err := dirFile.Mkdir()
+				if err != nil {
+					logs.Println("error:", err.Error())
+					return
+				}
+			}
+
+			newVersion := resp.Header.Get("Tea-Agent-Version")
+			filename := "teaweb-agent@" + newVersion
+			if runtime.GOOS == "windows" {
+				filename = "teaweb-agent@" + newVersion + ".exe"
+			}
+			file := files.NewFile(dir + "/" + filename)
+			err = file.Write(data)
+			if err != nil {
+				logs.Println("error:", err.Error())
+				return
+			}
+
+			err = file.Chmod(0777)
+			if err != nil {
+				logs.Println("error:", err.Error())
+				return
+			}
+
+			// 停止当前
+			levelDB.Close()
+
+			// 启动
+			proc := processes.NewProcess(dir + Tea.DS + filename)
+			err := proc.StartBackground()
+			if err != nil {
+				logs.Println("error:", err.Error())
+				return
+			}
+
+			logs.Println("exit to switch agent")
+			time.Sleep(1024 * time.Second)
+			os.Exit(0)
+		}
+	})
 }

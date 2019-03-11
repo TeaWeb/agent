@@ -1,10 +1,10 @@
 package teaagent
 
 import (
+	"errors"
 	"github.com/TeaWeb/code/teaconfigs/agents"
 	"github.com/iwind/TeaGo/logs"
 	"github.com/iwind/TeaGo/timers"
-	"github.com/syndtr/goleveldb/leveldb/errors"
 	"time"
 )
 
