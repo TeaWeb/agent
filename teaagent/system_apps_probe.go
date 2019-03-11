@@ -127,8 +127,11 @@ chart.render();
 		this.cpuTicker.Stop()
 	}
 	this.cpuTicker = this.every(60*time.Second, func() {
-		stat, err := cpu.Percent(5*time.Second, false)
+		stat, err := cpu.Percent(0, false)
 		if err != nil || len(stat) == 0 {
+			return
+		}
+		if stat[0] == 0 {
 			return
 		}
 		PushEvent(NewItemEvent(runningAgent.Id, this.systemApp.Id, item.Id, math.Round(stat[0]), nil))

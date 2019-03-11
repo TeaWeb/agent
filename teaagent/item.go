@@ -4,6 +4,7 @@ import (
 	"github.com/TeaWeb/code/teaconfigs/agents"
 	"github.com/iwind/TeaGo/logs"
 	"github.com/iwind/TeaGo/timers"
+	"github.com/syndtr/goleveldb/leveldb/errors"
 	"time"
 )
 
@@ -24,7 +25,13 @@ func NewItem(appId string, config *agents.Item) *Item {
 
 // 运行一次
 func (this *Item) Run() (value interface{}, err error) {
-	return this.config.Source().Execute(nil)
+	source := this.config.Source()
+	if source == nil {
+		errMsg := "item " + this.config.Name + " source '" + this.config.SourceCode + "' does not exist, please update this agent to latest version"
+		PushEvent(NewItemEvent(runningAgent.Id, this.appId, this.config.Id, "", errors.New(errMsg)))
+		return "", errors.New(errMsg)
+	}
+	return source.Execute(nil)
 }
 
 // 定时运行
@@ -33,7 +40,15 @@ func (this *Item) Schedule() {
 		this.lastTimer.Stop()
 	}
 	this.lastTimer = timers.Every(this.config.IntervalDuration(), func(ticker *time.Ticker) {
-		value, err := this.config.Source().Execute(nil)
+		source := this.config.Source()
+		if source == nil {
+			errMsg := "item " + this.config.Name + " source '" + this.config.SourceCode + "' does not exist, please update this agent to latest version"
+			logs.Println(errMsg)
+			PushEvent(NewItemEvent(runningAgent.Id, this.appId, this.config.Id, "", errors.New(errMsg)))
+			return
+		}
+
+		value, err := source.Execute(nil)
 		if err != nil {
 			logs.Println("error:" + err.Error())
 		}
