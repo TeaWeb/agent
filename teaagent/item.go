@@ -58,7 +58,7 @@ func (this *Item) Schedule() {
 			if len(threshold.Actions) == 0 {
 				continue
 			}
-			if threshold.Test(value) {
+			if threshold.Test(value, nil) { // TODO 记录oldValue
 				logs.Println("run " + this.config.Name + " [" + threshold.Param + " " + threshold.Operator + " " + threshold.Value + "] actions")
 				err1 := threshold.RunActions(map[string]string{})
 				if err1 != nil {
