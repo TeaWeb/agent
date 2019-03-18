@@ -50,7 +50,7 @@ func (this *Item) Schedule() {
 
 		value, err := source.Execute(nil)
 		if err != nil {
-			logs.Println("error:" + err.Error())
+			logs.Println(this.config.Name + " error:" + err.Error())
 		}
 
 		// 执行动作
@@ -62,7 +62,7 @@ func (this *Item) Schedule() {
 				logs.Println("run " + this.config.Name + " [" + threshold.Param + " " + threshold.Operator + " " + threshold.Value + "] actions")
 				err1 := threshold.RunActions(map[string]string{})
 				if err1 != nil {
-					logs.Println("error:" + err1.Error())
+					logs.Println(this.config.Name + " error:" + err1.Error())
 
 					if err == nil {
 						err = err1

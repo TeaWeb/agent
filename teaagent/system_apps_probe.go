@@ -37,7 +37,6 @@ type SystemAppsProbe struct {
 func NewSystemAppsProbe() *SystemAppsProbe {
 	systemApp := agents.NewAppConfig()
 	systemApp.Name = "系统"
-	systemApp.IsSystem = true
 	systemApp.Id = "system"
 
 	return &SystemAppsProbe{
