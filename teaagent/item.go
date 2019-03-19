@@ -57,12 +57,18 @@ func (this *Item) Schedule() {
 		}
 
 		// 执行动作
-
 		for _, threshold := range this.config.Thresholds {
 			if len(threshold.Actions) == 0 {
 				continue
 			}
-			if threshold.Test(value, this.oldValue) {
+			b, err1 := threshold.Test(value, this.oldValue)
+			if err1 != nil {
+				logs.Println(this.config.Name + " error:" + err1.Error())
+				if err == nil {
+					err = err1
+				}
+			}
+			if b {
 				logs.Println("run " + this.config.Name + " [" + threshold.Param + " " + threshold.Operator + " " + threshold.Value + "] actions")
 				err1 := threshold.RunActions(map[string]string{})
 				if err1 != nil {
