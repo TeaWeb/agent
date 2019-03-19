@@ -13,6 +13,7 @@ type Item struct {
 	appId     string
 	config    *agents.Item
 	lastTimer *time.Ticker
+	oldValue  interface{}
 }
 
 // 获取新任务
@@ -51,14 +52,17 @@ func (this *Item) Schedule() {
 		value, err := source.Execute(nil)
 		if err != nil {
 			logs.Println(this.config.Name + " error:" + err.Error())
+		} else {
+			this.oldValue = value
 		}
 
 		// 执行动作
+
 		for _, threshold := range this.config.Thresholds {
 			if len(threshold.Actions) == 0 {
 				continue
 			}
-			if threshold.Test(value, nil) { // TODO 记录oldValue
+			if threshold.Test(value, this.oldValue) {
 				logs.Println("run " + this.config.Name + " [" + threshold.Param + " " + threshold.Operator + " " + threshold.Value + "] actions")
 				err1 := threshold.RunActions(map[string]string{})
 				if err1 != nil {
