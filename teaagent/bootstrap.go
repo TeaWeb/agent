@@ -757,11 +757,12 @@ func pushEvents() {
 
 				// Push到Master服务器
 				value := iterator.Value()
-				req, err := http.NewRequest(http.MethodPut, connectConfig.Master+"/api/agent/push", bytes.NewReader(value))
+				req, err := http.NewRequest(http.MethodPost, connectConfig.Master+"/api/agent/push", bytes.NewReader(value))
 				if err != nil {
 					logs.Println("error:", err.Error())
 				} else {
 					err = func() error {
+						req.Header.Set("Content-Type", "application/json")
 						req.Header.Set("User-Agent", "TeaWeb Agent")
 						req.Header.Set("Tea-Agent-Id", connectConfig.Id)
 						req.Header.Set("Tea-Agent-Key", connectConfig.Key)
