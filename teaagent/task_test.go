@@ -14,7 +14,7 @@ func TestTask_Run(t *testing.T) {
 	config.Script = `#!/usr/bin/env bash
 
 echo "Hello"`
-	config.Env = []*shared.EnvVariable{
+	config.Env = []*shared.Variable{
 		{
 			Name:  "name",
 			Value: "Tom",
@@ -38,7 +38,7 @@ func TestTask_RunConcurrent(t *testing.T) {
 	config := agents.NewTaskConfig()
 	config.Id = "test"
 	config.Script = `/usr/bin/env bash\n\necho "Hello"`
-	config.Env = []*shared.EnvVariable{
+	config.Env = []*shared.Variable{
 		{
 			Name:  "name",
 			Value: "Tom",
@@ -84,7 +84,7 @@ func TestTask_RunLog(t *testing.T) {
 	config.Script = `#!/usr/bin/env bash
 
 echo "Hello"`
-	config.Env = []*shared.EnvVariable{
+	config.Env = []*shared.Variable{
 		{
 			Name:  "name",
 			Value: "Tom",

@@ -51,7 +51,7 @@ func (this *Item) Schedule() {
 
 		value, err := source.Execute(nil)
 		if err != nil {
-			logs.Println(this.config.Name + " error:" + err.Error())
+			logs.Println("execute " + this.config.Name + " error:" + err.Error())
 		} else {
 			this.oldValue = value
 		}

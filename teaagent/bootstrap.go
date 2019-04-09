@@ -3,6 +3,7 @@ package teaagent
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -46,6 +47,44 @@ var connectionIsBroken = false
 
 // 启动
 func Start() {
+	// 帮助
+	if lists.ContainsAny(os.Args, "h", "-h", "help", "-help") {
+		fmt.Print(`Usage:
+~~~
+bin/teaweb-agent						
+   run in foreground
+
+bin/teaweb-agent help 					
+   show help
+
+bin/teaweb-agent start 					
+   start agent
+
+bin/teaweb-agent stop 					
+   stop agent
+
+bin/teaweb-agent restart				
+   restart agent
+
+bin/teaweb-agent run [TASK ID]		
+   run task
+
+bin/teaweb-agent run [ITEM ID]		
+   run monitor item
+
+bin/teaweb-agent [-v|version]
+   show agent version
+~~~
+`)
+		return
+	}
+
+	// 版本号
+	if lists.ContainsAny(os.Args, "version", "-v") {
+		fmt.Println("v" + teaconst.TeaVersion)
+		return
+	}
+
 	if !lists.Contains(os.Args, "stop") {
 		logs.Println("agent booting ...")
 	}
@@ -141,35 +180,6 @@ func Start() {
 			logs.Println(err.Error())
 		}
 
-		return
-	}
-
-	// 帮助
-	if lists.ContainsAny(os.Args, "h", "-h", "help", "-help") {
-		fmt.Print(`Usage:
-~~~
-bin/teaweb-agent						
-   run in foreground
-
-bin/teaweb-agent help 					
-   show help
-
-bin/teaweb-agent start 					
-   start agent
-
-bin/teaweb-agent stop 					
-   stop agent
-
-bin/teaweb-agent restart				
-   restart agent
-
-bin/teaweb-agent run [TASK ID]		
-   run task
-
-bin/teaweb-agent run [ITEM ID]		
-   run monitor item
-~~~
-`)
 		return
 	}
 
@@ -561,7 +571,7 @@ func detectApps() {
 
 // 从主服务器同步数据
 func pullEvents() error {
-	//logs.Println("pull events ...")
+	//logs.Println("pull events ...", connectConfig.Master+"/api/agent/pull")
 	master := connectConfig.Master
 	if len(master) == 0 {
 		return errors.New("'master' should not be empty")
@@ -575,6 +585,7 @@ func pullEvents() error {
 	req.Header.Set("Tea-Agent-Key", connectConfig.Key)
 	req.Header.Set("Tea-Agent-Version", teaconst.TeaVersion)
 	req.Header.Set("Tea-Agent-Os", runtime.GOOS)
+	req.Header.Set("Tea-Agent-OsName", base64.StdEncoding.EncodeToString([]byte(retrieveOsName())))
 	req.Header.Set("Tea-Agent-Arch", runtime.GOARCH)
 	req.Header.Set("Tea-Agent-Nano", fmt.Sprintf("%d", time.Now().UnixNano()))
 	connectingFailed := false

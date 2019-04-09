@@ -35,3 +35,9 @@ bin/teaweb-agent run [TASK ID]
 ~~~bash
 bin/teaweb-agent run [ITEM ID]
 ~~~
+
+查看Agent版本（从v0.1.1开始支持）：
+~~~bash
+bin/teaweb-agent -v
+bin/teaweb-agent version
+~~~   

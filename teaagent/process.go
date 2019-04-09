@@ -13,7 +13,7 @@ type Process struct {
 	UniqueId string
 	Pid      int
 
-	Env  []*shared.EnvVariable
+	Env  []*shared.Variable
 	Cwd  string
 	File string
 
