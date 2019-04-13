@@ -700,7 +700,7 @@ func pullEvents() error {
 				taskId := eventDataMap.GetString("taskId")
 				appConfig, taskConfig := runningAgent.FindTask(taskId)
 				if taskConfig == nil {
-					logs.Println("error:no task with id '" + taskId + "found")
+					logs.Println("error:no task with id '" + taskId + " found")
 				} else {
 					task := NewTask(appConfig.Id, taskConfig)
 					task.RunLog()
@@ -714,6 +714,24 @@ func pullEvents() error {
 			downloadConfig()
 		case "DELETE_ITEM":
 			downloadConfig()
+		case "RUN_ITEM":
+			eventDataMap := eventMap.GetMap("data")
+			if eventDataMap != nil {
+				itemId := eventDataMap.GetString("itemId")
+				found := false
+				logs.Println("run item " + itemId)
+				for _, item := range runningItems {
+					if item.config.Id == itemId {
+						found = true
+						value, err := item.Run()
+						PushEvent(NewItemEvent(runningAgent.Id, item.appId, item.config.Id, value, err))
+						break
+					}
+				}
+				if !found {
+					logs.Println("error:item with id '" + itemId + "' not found")
+				}
+			}
 		}
 	}
 
