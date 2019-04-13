@@ -5,6 +5,7 @@ package teaagent
 import (
 	"github.com/iwind/TeaGo/files"
 	"os/exec"
+	"regexp"
 	"runtime"
 	"strings"
 )
@@ -65,6 +66,18 @@ func retrieveOsName() string {
 				}
 			}
 		}
+	} else if runtime.GOOS == "freebsd" {
+		cmd := exec.Command("uname", "-a")
+		data, err := cmd.CombinedOutput()
+		if err != nil {
+			return "FreeBSD"
+		}
+
+		result := regexp.MustCompile("FreeBSD\\s+([0-9.]+)").FindStringSubmatch(string(data))
+		if len(result) == 0 {
+			return "FreeBSD"
+		}
+		return "FreeBSD " + result[1]
 	}
 
 	return ""
