@@ -28,6 +28,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"runtime"
@@ -47,6 +48,15 @@ var connectionIsBroken = false
 
 // 启动
 func Start() {
+	// 当前ROOT
+	if !Tea.IsTesting() {
+		exePath := os.Args[0]
+		fullPath, err := filepath.Abs(exePath)
+		if err == nil {
+			Tea.UpdateRoot(filepath.Dir(filepath.Dir(fullPath)))
+		}
+	}
+
 	// 帮助
 	if lists.ContainsAny(os.Args, "h", "-h", "help", "-help") {
 		fmt.Print(`Usage:
