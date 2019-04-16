@@ -4,6 +4,7 @@ package teaagent
 
 import (
 	"github.com/iwind/TeaGo/files"
+	"github.com/iwind/TeaGo/maps"
 	"os/exec"
 	"regexp"
 	"runtime"
@@ -11,7 +12,6 @@ import (
 )
 
 // 获取系统发行版本信息
-// 参考 https://whatsmyos.com/
 func retrieveOsName() string {
 	if runtime.GOOS == "darwin" {
 		cmd := exec.Command("sw_vers", "-productVersion")
@@ -24,20 +24,33 @@ func retrieveOsName() string {
 
 	if runtime.GOOS == "linux" {
 		{
+			osFile := files.NewFile("/etc/os-release")
+			if osFile.Exists() {
+				s, err := osFile.ReadAllString()
+				if err == nil && len(s) > 0 {
+					m := maps.Map{}
+					for _, field := range strings.Split(s, "\n") {
+						pieces := strings.SplitN(field, "=", 2)
+						if len(pieces) != 2 {
+							continue
+						}
+						m[pieces[0]] = strings.Trim(pieces[1], "\"")
+					}
+					name := m.GetString("NAME")
+					version := m.GetString("VERSION_ID")
+					if len(name) > 0 {
+						return name + " " + version
+					}
+				}
+			}
+		}
+
+		{
 			etcFile := files.NewFile("/etc/redhat-release")
 			if etcFile.Exists() {
 				s, err := etcFile.ReadAllString()
 				if err == nil && len(s) > 0 {
-					s = strings.Replace(s, " Release ", " ", -1)
-					s = strings.Replace(s, " release", " ", -1)
-					s = strings.Replace(s, " Linux ", " ", -1)
-					s = strings.Replace(s, "(Core)", "", -1)
-
-					if strings.HasPrefix(s, "Red Hat Enterprise Linux") {
-						s = strings.Replace(s, "Red Hat Enterprise Linux", "RHEL", -1)
-					}
-
-					return strings.TrimSpace(s)
+					return strings.TrimSpace(shortenOsName(s))
 				}
 			}
 		}
@@ -49,7 +62,8 @@ func retrieveOsName() string {
 				if err == nil && len(s) > 0 {
 					s = strings.Replace(s, "\\n", "", -1)
 					s = strings.Replace(s, "\\l", "", -1)
-					return strings.TrimSpace(s)
+
+					return strings.TrimSpace(shortenOsName(s))
 				}
 			}
 		}
@@ -62,7 +76,7 @@ func retrieveOsName() string {
 					s = strings.Replace(s, "\\n", "", -1)
 					s = strings.Replace(s, "\\l", "", -1)
 					s = strings.Replace(s, " GNU/Linux ", " ", -1)
-					return strings.TrimSpace(s)
+					return strings.TrimSpace(shortenOsName(s))
 				}
 			}
 		}
@@ -81,4 +95,11 @@ func retrieveOsName() string {
 	}
 
 	return ""
+}
+
+func shortenOsName(osName string) string {
+	osName = strings.Replace(osName, "CentOS Linux", "CentOS", -1)
+	osName = strings.Replace(osName, "Red Hat Enterprise Linux Server", "RHEL", -1)
+	osName = strings.Replace(osName, "SUSE Linux Enterprise Server", "SLES", -1)
+	return osName
 }
