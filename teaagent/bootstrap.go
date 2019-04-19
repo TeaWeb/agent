@@ -138,7 +138,7 @@ bin/teaweb-agent [-v|version]
 	}
 
 	// 运行某个脚本
-	if lists.Contains(os.Args, "run") {
+	if lists.ContainsAny(os.Args, "run") {
 		if len(os.Args) <= 2 {
 			logs.Println("no task to run")
 			return
@@ -194,7 +194,7 @@ bin/teaweb-agent [-v|version]
 	}
 
 	// 测试连接
-	if lists.Contains(os.Args, "test") {
+	if lists.ContainsAny(os.Args, "test", "-t") {
 		err := testConnection()
 		if err != nil {
 			logs.Println("error:", err.Error())
@@ -205,7 +205,7 @@ bin/teaweb-agent [-v|version]
 	}
 
 	// 日志
-	if lists.Contains(os.Args, "background") {
+	if lists.ContainsAny(os.Args, "background", "-d") {
 		writePid()
 
 		logDir := files.NewFile(Tea.Root + "/logs")
@@ -1078,7 +1078,7 @@ func checkNewVersion() {
 		req.Header.Set("Tea-Agent-Arch", runtime.GOARCH)
 
 		client := &http.Client{
-			Timeout: 60 * time.Second,
+			Timeout: 300 * time.Second, // 让Agent有足够的时间下载升级包
 		}
 		resp, err := client.Do(req)
 		if err != nil {
