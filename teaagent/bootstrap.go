@@ -265,7 +265,7 @@ bin/teaweb-agent [-v|version]
 		err := pullEvents()
 		if err != nil {
 			logs.Println("pull error:", err.Error())
-			time.Sleep(5 * time.Second)
+			time.Sleep(30 * time.Second)
 		}
 	}
 }
@@ -837,8 +837,8 @@ func pushEvents() {
 
 						if respJSON.GetInt("code") != 200 {
 							logs.Println("[/api/agent/push]error response from master:", string(respBody))
-							time.Sleep(5 * time.Second)
-							return err
+							time.Sleep(60 * time.Second)
+							return nil
 						}
 						err = db.Delete(key, nil)
 						if err != nil {
@@ -847,7 +847,7 @@ func pushEvents() {
 						return nil
 					}()
 					if err != nil {
-						time.Sleep(5 * time.Second)
+						time.Sleep(60 * time.Second)
 						break
 					}
 				}
@@ -1070,7 +1070,7 @@ func checkNewVersion() {
 			return
 		}
 
-		req.Header.Set("User-Agent", "TeaWeb Agent")
+		req.Header.Set("User-Agent", "TeaWeb-Agent/"+teaconst.TeaVersion)
 		req.Header.Set("Tea-Agent-Id", connectConfig.Id)
 		req.Header.Set("Tea-Agent-Key", connectConfig.Key)
 		req.Header.Set("Tea-Agent-Version", teaconst.TeaVersion)
