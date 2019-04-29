@@ -699,6 +699,8 @@ func pullEvents() error {
 		switch name {
 		case "UPDATE_AGENT":
 			downloadConfig()
+		case "REMOVE_AGENT":
+			os.Exit(0)
 		case "ADD_APP":
 			downloadConfig()
 		case "UPDATE_APP":
