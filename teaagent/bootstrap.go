@@ -60,7 +60,11 @@ func Start() {
 		}
 		fullPath, err := filepath.Abs(exePath)
 		if err == nil {
-			Tea.UpdateRoot(filepath.Dir(filepath.Dir(fullPath)))
+			if strings.Contains(filepath.Base(fullPath), "@") { // 是不是升级的文件
+				Tea.UpdateRoot(filepath.Dir(filepath.Dir(filepath.Dir(fullPath))))
+			} else {
+				Tea.UpdateRoot(filepath.Dir(filepath.Dir(fullPath)))
+			}
 		}
 	}
 
@@ -763,7 +767,7 @@ var levelDB *leveldb.DB = nil
 func pushEvents() {
 	db, err := leveldb.OpenFile(Tea.Root+"/logs/agent.leveldb", nil)
 	if err != nil {
-		logs.Println("error:", err.Error())
+		logs.Println("leveldb:", err.Error(), "path:"+Tea.Root+"/logs/agent.leveldb")
 		return
 	}
 	levelDB = db
@@ -772,7 +776,7 @@ func pushEvents() {
 	// compact db
 	err = db.CompactRange(*util.BytesPrefix([]byte("log.")))
 	if err != nil {
-		logs.Println("error:", err.Error())
+		logs.Println("leveldb:", err.Error())
 	}
 
 	// 读取本地数据库日志并发送到Master
