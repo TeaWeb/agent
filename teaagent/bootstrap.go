@@ -287,9 +287,11 @@ func initConnection() {
 }
 
 // 启动监听端口欧
+var statusServer *Server = nil
+
 func startListening() {
-	server := NewServer()
-	err := server.Start()
+	statusServer = NewServer()
+	err := statusServer.Start()
 	if err != nil {
 		logs.Error(err)
 	}
@@ -1149,6 +1151,11 @@ func checkNewVersion() {
 					logs.Println("leveldb error:", err.Error())
 					return
 				}
+			}
+
+			// status server
+			if statusServer != nil {
+				statusServer.Shutdown()
 			}
 
 			// 启动
