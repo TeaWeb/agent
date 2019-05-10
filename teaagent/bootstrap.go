@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/TeaWeb/agent/teaconfigs"
 	"github.com/TeaWeb/agent/teaconst"
+	"github.com/TeaWeb/agent/teautils"
 	"github.com/TeaWeb/code/teaconfigs/agents"
 	"github.com/go-yaml/yaml"
 	"github.com/iwind/TeaGo/Tea"
@@ -34,6 +35,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -50,21 +52,11 @@ var connectionIsBroken = false
 func Start() {
 	// 当前ROOT
 	if !Tea.IsTesting() {
-		exePath, err := os.Executable()
-		if err != nil {
-			exePath = os.Args[0]
-		}
-		link, err := filepath.EvalSymlinks(exePath)
-		if err == nil {
-			exePath = link
-		}
-		fullPath, err := filepath.Abs(exePath)
-		if err == nil {
-			if strings.Contains(filepath.Base(fullPath), "@") { // 是不是升级的文件
-				Tea.UpdateRoot(filepath.Dir(filepath.Dir(filepath.Dir(fullPath))))
-			} else {
-				Tea.UpdateRoot(filepath.Dir(filepath.Dir(fullPath)))
-			}
+		exePath := teautils.Executable()
+		if strings.Contains(filepath.Base(exePath), "@") { // 是不是升级的文件
+			Tea.UpdateRoot(filepath.Dir(filepath.Dir(filepath.Dir(exePath))))
+		} else {
+			Tea.UpdateRoot(filepath.Dir(filepath.Dir(exePath)))
 		}
 	}
 
@@ -79,13 +71,16 @@ bin/teaweb-agent help
    show help
 
 bin/teaweb-agent start 					
-   start agent
+   start agent in background
 
 bin/teaweb-agent stop 					
-   stop agent
+   stop running agent
 
 bin/teaweb-agent restart				
-   restart agent
+   restart the agent
+
+bin/teaweb-agent status
+   lookup agent status
 
 bin/teaweb-agent run [TASK ID]		
    run task
@@ -104,10 +99,6 @@ bin/teaweb-agent [-v|version]
 	if lists.ContainsAny(os.Args, "version", "-v") {
 		fmt.Println("v" + teaconst.AgentVersion)
 		return
-	}
-
-	if !lists.Contains(os.Args, "stop") {
-		logs.Println("agent booting ...")
 	}
 
 	if len(os.Args) == 0 {
@@ -130,21 +121,27 @@ bin/teaweb-agent [-v|version]
 	}
 
 	// 启动
-	if lists.Contains(os.Args, "start") {
+	if lists.ContainsString(os.Args, "start") {
 		onStart()
 		return
 	}
 
 	// 停止
-	if lists.Contains(os.Args, "stop") {
+	if lists.ContainsString(os.Args, "stop") {
 		onStop()
 		return
 	}
 
 	// 重启
-	if lists.Contains(os.Args, "restart") {
+	if lists.ContainsString(os.Args, "restart") {
 		onStop()
 		onStart()
+		return
+	}
+
+	// 查看状态
+	if lists.ContainsString(os.Args, "status") {
+		onStatus()
 		return
 	}
 
@@ -906,7 +903,7 @@ func pushEvents() {
 
 // 启动
 func onStart() {
-	cmdFile := os.Args[0]
+	cmdFile := teautils.Executable()
 	cmd := exec.Command(cmdFile, "background")
 	cmd.Dir = Tea.Root
 	err := cmd.Start()
@@ -927,7 +924,9 @@ func onStart() {
 
 	time.Sleep(1 * time.Second)
 	if failed {
-		logs.Println("error: process terminated, lookup 'logs/run.log' for more details")
+		fmt.Println("error: process terminated, lookup 'logs/run.log' for more details")
+	} else {
+		fmt.Println("started ok")
 	}
 }
 
@@ -944,8 +943,35 @@ func onStop() {
 		} else {
 			process.Kill()
 			logs.Println("stopped pid", pid)
+			pidFile.Delete()
 		}
 	}
+}
+
+// lookup status
+func onStatus() {
+	pidString, err := files.NewFile(Tea.Root + Tea.DS + "logs" + Tea.DS + "pid").ReadAllString()
+	if err != nil {
+		fmt.Println("Agent not started yet")
+		return
+	}
+
+	pid := types.Int(pidString)
+	proc, err := os.FindProcess(pid)
+	if err != nil {
+		fmt.Println("Agent not started yet")
+		return
+	}
+	if proc == nil {
+		fmt.Println("Agent not started yet")
+		return
+	}
+	err = proc.Signal(syscall.Signal(0))
+	if err != nil {
+		fmt.Println("Agent not started yet")
+		return
+	}
+	fmt.Println("Agent is running, pid:" + pidString)
 }
 
 // 测试连接
