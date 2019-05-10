@@ -1,7 +1,7 @@
 package teaagent
 
 import (
-	"github.com/TeaWeb/code/teaconst"
+	"github.com/TeaWeb/agent/teaconst"
 	"github.com/iwind/TeaGo/maps"
 	"github.com/iwind/TeaGo/utils/string"
 	"golang.org/x/net/context"
@@ -29,7 +29,7 @@ func (this *Server) Start() error {
 	handler := http.NewServeMux()
 	handler.HandleFunc("/status", func(writer http.ResponseWriter, req *http.Request) {
 		writer.Write([]byte(stringutil.JSONEncode(maps.Map{
-			"version": teaconst.TeaVersion,
+			"version": teaconst.AgentVersion,
 		})))
 	})
 

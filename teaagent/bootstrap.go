@@ -8,8 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/TeaWeb/agent/teaconfigs"
+	"github.com/TeaWeb/agent/teaconst"
 	"github.com/TeaWeb/code/teaconfigs/agents"
-	"github.com/TeaWeb/code/teaconst"
 	"github.com/go-yaml/yaml"
 	"github.com/iwind/TeaGo/Tea"
 	"github.com/iwind/TeaGo/files"
@@ -102,7 +102,7 @@ bin/teaweb-agent [-v|version]
 
 	// 版本号
 	if lists.ContainsAny(os.Args, "version", "-v") {
-		fmt.Println("v" + teaconst.TeaVersion)
+		fmt.Println("v" + teaconst.AgentVersion)
 		return
 	}
 
@@ -606,7 +606,7 @@ func pullEvents() error {
 	req.Header.Set("User-Agent", "TeaWeb Agent")
 	req.Header.Set("Tea-Agent-Id", connectConfig.Id)
 	req.Header.Set("Tea-Agent-Key", connectConfig.Key)
-	req.Header.Set("Tea-Agent-Version", teaconst.TeaVersion)
+	req.Header.Set("Tea-Agent-Version", teaconst.AgentVersion)
 	req.Header.Set("Tea-Agent-Os", runtime.GOOS)
 	req.Header.Set("Tea-Agent-OsName", base64.StdEncoding.EncodeToString([]byte(retrieveOsName())))
 	req.Header.Set("Tea-Agent-Arch", runtime.GOARCH)
@@ -820,7 +820,7 @@ func pushEvents() {
 						req.Header.Set("User-Agent", "TeaWeb Agent")
 						req.Header.Set("Tea-Agent-Id", connectConfig.Id)
 						req.Header.Set("Tea-Agent-Key", connectConfig.Key)
-						req.Header.Set("Tea-Agent-Version", teaconst.TeaVersion)
+						req.Header.Set("Tea-Agent-Version", teaconst.AgentVersion)
 						req.Header.Set("Tea-Agent-Os", runtime.GOOS)
 						req.Header.Set("Tea-Agent-Arch", runtime.GOARCH)
 						client := http.Client{
@@ -961,7 +961,7 @@ func testConnection() error {
 	req.Header.Set("User-Agent", "TeaWeb Agent")
 	req.Header.Set("Tea-Agent-Id", connectConfig.Id)
 	req.Header.Set("Tea-Agent-Key", connectConfig.Key)
-	req.Header.Set("Tea-Agent-Version", teaconst.TeaVersion)
+	req.Header.Set("Tea-Agent-Version", teaconst.AgentVersion)
 	req.Header.Set("Tea-Agent-Os", runtime.GOOS)
 	req.Header.Set("Tea-Agent-Arch", runtime.GOARCH)
 	client := http.Client{
@@ -1040,7 +1040,7 @@ func shouldStartNewVersion() bool {
 		return false
 	}
 	fileList := files.NewFile(Tea.Root + "/bin/upgrade/").List()
-	latestVersion := teaconst.TeaVersion
+	latestVersion := teaconst.AgentVersion
 	for _, f := range fileList {
 		filename := f.Name()
 		index := strings.Index(filename, "@")
@@ -1085,10 +1085,10 @@ func checkNewVersion() {
 			return
 		}
 
-		req.Header.Set("User-Agent", "TeaWeb-Agent/"+teaconst.TeaVersion)
+		req.Header.Set("User-Agent", "TeaWeb-Agent/"+teaconst.AgentVersion)
 		req.Header.Set("Tea-Agent-Id", connectConfig.Id)
 		req.Header.Set("Tea-Agent-Key", connectConfig.Key)
-		req.Header.Set("Tea-Agent-Version", teaconst.TeaVersion)
+		req.Header.Set("Tea-Agent-Version", teaconst.AgentVersion)
 		req.Header.Set("Tea-Agent-Os", runtime.GOOS)
 		req.Header.Set("Tea-Agent-Arch", runtime.GOARCH)
 
