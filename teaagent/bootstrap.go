@@ -1104,7 +1104,7 @@ func checkNewVersion() {
 			return
 		}
 
-		logs.Println("check new version")
+		//logs.Println("check new version")
 		req, err := http.NewRequest(http.MethodGet, connectConfig.Master+"/api/agent/upgrade", nil)
 		if err != nil {
 			logs.Println("error:", err.Error())
