@@ -3,6 +3,7 @@ package teaagent
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -317,6 +318,11 @@ func downloadConfig() error {
 	req.Header.Set("Tea-Agent-Key", connectConfig.Key)
 	client := http.Client{
 		Timeout: 5 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		},
 	}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -630,6 +636,9 @@ func pullEvents() error {
 				}
 				return conn, err
 			},
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
 		},
 	}
 	resp, err := client.Do(req)
@@ -822,6 +831,11 @@ func pushEvents() {
 						req.Header.Set("Tea-Agent-Arch", runtime.GOARCH)
 						client := http.Client{
 							Timeout: 5 * time.Second,
+							Transport: &http.Transport{
+								TLSClientConfig: &tls.Config{
+									InsecureSkipVerify: true,
+								},
+							},
 						}
 						resp, err := client.Do(req)
 
@@ -992,6 +1006,11 @@ func testConnection() error {
 	req.Header.Set("Tea-Agent-Arch", runtime.GOARCH)
 	client := http.Client{
 		Timeout: 5 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+			},
+		},
 	}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -1120,6 +1139,11 @@ func checkNewVersion() {
 
 		client := &http.Client{
 			Timeout: 300 * time.Second, // 让Agent有足够的时间下载升级包
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+			},
 		}
 		resp, err := client.Do(req)
 		if err != nil {
