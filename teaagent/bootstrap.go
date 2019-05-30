@@ -797,26 +797,16 @@ func pushEvents() {
 
 			for iterator.Next() {
 				key := iterator.Key()
-				keyString := string(key)
-
-				// 时间如果超过72小时就自动删除
-				keyPieces := strings.Split(keyString, ".")
-				if len(keyPieces) == 2 {
-					timePieces := strings.Split(keyPieces[1], "_")
-					if len(timePieces) == 2 {
-						timestamp := types.Int64(timePieces[0])
-						if time.Now().Unix()-timestamp >= 3*24*86400 {
-							err := db.Delete(key, nil)
-							if err != nil {
-								logs.Error(err)
-							}
-							continue
-						}
-					}
-				}
 
 				// Push到Master服务器
 				value := iterator.Value()
+
+				// 不保存本地记录，因为只有即时的数据对监控才有意义
+				err = db.Delete(key, nil)
+				if err != nil {
+					logs.Error(err)
+				}
+
 				req, err := http.NewRequest(http.MethodPost, connectConfig.Master+"/api/agent/push", bytes.NewReader(value))
 				if err != nil {
 					logs.Println("error:", err.Error())
@@ -865,10 +855,6 @@ func pushEvents() {
 							logs.Println("[/api/agent/push]error response from master:", string(respBody))
 							time.Sleep(60 * time.Second)
 							return nil
-						}
-						err = db.Delete(key, nil)
-						if err != nil {
-							logs.Error(err)
 						}
 						return nil
 					}()
