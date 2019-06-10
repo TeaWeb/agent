@@ -316,7 +316,7 @@ func downloadConfig() error {
 	req.Header.Set("User-Agent", "TeaWeb Agent")
 	req.Header.Set("Tea-Agent-Id", connectConfig.Id)
 	req.Header.Set("Tea-Agent-Key", connectConfig.Key)
-	client := http.Client{
+	client := &http.Client{
 		Timeout: 5 * time.Second,
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
@@ -324,6 +324,7 @@ func downloadConfig() error {
 			},
 		},
 	}
+	defer teautils.CloseHTTPClient(client)
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
@@ -615,7 +616,7 @@ func pullEvents() error {
 	req.Header.Set("Tea-Agent-Arch", runtime.GOARCH)
 	req.Header.Set("Tea-Agent-Nano", fmt.Sprintf("%d", time.Now().UnixNano()))
 	connectingFailed := false
-	client := http.Client{
+	client := &http.Client{
 		Timeout: 60 * time.Second,
 		Transport: &http.Transport{
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
@@ -623,7 +624,6 @@ func pullEvents() error {
 				conn, err := (&net.Dialer{
 					Timeout:   5 * time.Second,
 					KeepAlive: 0,
-					DualStack: true,
 				}).DialContext(ctx, network, addr)
 				if err != nil {
 					connectingFailed = true
@@ -641,6 +641,7 @@ func pullEvents() error {
 			},
 		},
 	}
+	defer teautils.CloseHTTPClient(client)
 	resp, err := client.Do(req)
 	if err != nil {
 		if connectingFailed {
@@ -701,7 +702,7 @@ func pullEvents() error {
 
 	eventsValue := reflect.ValueOf(events)
 	count := eventsValue.Len()
-	for i := 0; i < count; i ++ {
+	for i := 0; i < count; i++ {
 		event := eventsValue.Index(i).Interface()
 		if event == nil || reflect.TypeOf(event).Kind() != reflect.Map {
 			continue
@@ -819,7 +820,7 @@ func pushEvents() {
 						req.Header.Set("Tea-Agent-Version", teaconst.AgentVersion)
 						req.Header.Set("Tea-Agent-Os", runtime.GOOS)
 						req.Header.Set("Tea-Agent-Arch", runtime.GOARCH)
-						client := http.Client{
+						client := &http.Client{
 							Timeout: 5 * time.Second,
 							Transport: &http.Transport{
 								TLSClientConfig: &tls.Config{
@@ -827,6 +828,7 @@ func pushEvents() {
 								},
 							},
 						}
+						defer teautils.CloseHTTPClient(client)
 						resp, err := client.Do(req)
 
 						if err != nil {
@@ -895,7 +897,7 @@ func pushEvents() {
 		}
 
 		if db != nil {
-			logId ++
+			logId++
 			db.Put([]byte(fmt.Sprintf("log.%d_%d", time.Now().Unix(), logId)), jsonData, nil)
 		}
 	}
@@ -990,7 +992,7 @@ func testConnection() error {
 	req.Header.Set("Tea-Agent-Version", teaconst.AgentVersion)
 	req.Header.Set("Tea-Agent-Os", runtime.GOOS)
 	req.Header.Set("Tea-Agent-Arch", runtime.GOARCH)
-	client := http.Client{
+	client := &http.Client{
 		Timeout: 5 * time.Second,
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
@@ -998,6 +1000,7 @@ func testConnection() error {
 			},
 		},
 	}
+	defer teautils.CloseHTTPClient(client)
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
@@ -1131,6 +1134,7 @@ func checkNewVersion() {
 				},
 			},
 		}
+		defer teautils.CloseHTTPClient(client)
 		resp, err := client.Do(req)
 		if err != nil {
 			logs.Println("error:", err.Error())
