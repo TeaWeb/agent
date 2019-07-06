@@ -230,6 +230,12 @@ bin/teaweb-agent [-v|version]
 		}
 	}
 
+	// Windows服务
+	if lists.ContainsAny(os.Args, "service") && runtime.GOOS == "windows" {
+		manager := teautils.NewServiceManager("TeaWeb Agent", "TeaWeb Agent Manager")
+		manager.Run()
+	}
+
 	logs.Println("agent starting ...")
 
 	// 启动监听端口
@@ -968,6 +974,12 @@ func onStatus() {
 		fmt.Println("Agent not started yet")
 		return
 	}
+
+	if runtime.GOOS == "windows" {
+		fmt.Println("Agent is running, pid:" + pidString)
+		return
+	}
+
 	err = proc.Signal(syscall.Signal(0))
 	if err != nil {
 		fmt.Println("Agent not started yet")
