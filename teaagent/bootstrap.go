@@ -322,16 +322,7 @@ func downloadConfig() error {
 	req.Header.Set("User-Agent", "TeaWeb Agent")
 	req.Header.Set("Tea-Agent-Id", connectConfig.Id)
 	req.Header.Set("Tea-Agent-Key", connectConfig.Key)
-	client := &http.Client{
-		Timeout: 5 * time.Second,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-		},
-	}
-	defer teautils.CloseHTTPClient(client)
-	resp, err := client.Do(req)
+	resp, err := HTTPClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -642,6 +633,7 @@ func pullEvents() error {
 				}
 				return conn, err
 			},
+			IdleConnTimeout:     65 * time.Second,
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: true,
 			},
@@ -826,16 +818,7 @@ func pushEvents() {
 						req.Header.Set("Tea-Agent-Version", teaconst.AgentVersion)
 						req.Header.Set("Tea-Agent-Os", runtime.GOOS)
 						req.Header.Set("Tea-Agent-Arch", runtime.GOARCH)
-						client := &http.Client{
-							Timeout: 5 * time.Second,
-							Transport: &http.Transport{
-								TLSClientConfig: &tls.Config{
-									InsecureSkipVerify: true,
-								},
-							},
-						}
-						defer teautils.CloseHTTPClient(client)
-						resp, err := client.Do(req)
+						resp, err := HTTPClient.Do(req)
 
 						if err != nil {
 							logs.Println("error:", err.Error())
@@ -1004,16 +987,7 @@ func testConnection() error {
 	req.Header.Set("Tea-Agent-Version", teaconst.AgentVersion)
 	req.Header.Set("Tea-Agent-Os", runtime.GOOS)
 	req.Header.Set("Tea-Agent-Arch", runtime.GOARCH)
-	client := &http.Client{
-		Timeout: 5 * time.Second,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true,
-			},
-		},
-	}
-	defer teautils.CloseHTTPClient(client)
-	resp, err := client.Do(req)
+	resp, err := HTTPClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -1138,16 +1112,7 @@ func checkNewVersion() {
 		req.Header.Set("Tea-Agent-Os", runtime.GOOS)
 		req.Header.Set("Tea-Agent-Arch", runtime.GOARCH)
 
-		client := &http.Client{
-			Timeout: 300 * time.Second, // 让Agent有足够的时间下载升级包
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
-			},
-		}
-		defer teautils.CloseHTTPClient(client)
-		resp, err := client.Do(req)
+		resp, err := LongHTTPClient.Do(req)
 		if err != nil {
 			logs.Println("error:", err.Error())
 			return
