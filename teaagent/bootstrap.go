@@ -633,7 +633,7 @@ func pullEvents() error {
 				}
 				return conn, err
 			},
-			IdleConnTimeout:     65 * time.Second,
+			IdleConnTimeout: 65 * time.Second,
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: true,
 			},
@@ -733,7 +733,7 @@ func pullEvents() error {
 					logs.Println("error:no task with id '" + taskId + " found")
 				} else {
 					task := NewTask(appConfig.Id, taskConfig)
-					task.RunLog()
+					go task.RunLog()
 				}
 			} else {
 				logs.Println("invalid event data: should be a map")
@@ -753,8 +753,10 @@ func pullEvents() error {
 				for _, item := range runningItems {
 					if item.config.Id == itemId {
 						found = true
-						value, err := item.Run()
-						PushEvent(NewItemEvent(runningAgent.Id, item.appId, item.config.Id, value, err))
+						go func(item *Item) {
+							value, err := item.Run()
+							PushEvent(NewItemEvent(runningAgent.Id, item.appId, item.config.Id, value, err))
+						}(item)
 						break
 					}
 				}
