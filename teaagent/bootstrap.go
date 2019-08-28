@@ -22,8 +22,6 @@ import (
 	"github.com/iwind/TeaGo/timers"
 	"github.com/iwind/TeaGo/types"
 	"github.com/iwind/TeaGo/utils/string"
-	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/util"
 	"io/ioutil"
 	"log"
 	"net"
@@ -771,43 +769,14 @@ func pullEvents() error {
 }
 
 // 向Master同步事件
-var levelDB *leveldb.DB = nil
+var db = teautils.NewFileBuffer(Tea.Root + "/logs/agent")
 
 func pushEvents() {
-	db, err := leveldb.OpenFile(Tea.Root+"/logs/agent.leveldb", nil)
-	if err != nil {
-		logs.Println("leveldb:", err.Error(), "path:"+Tea.Root+"/logs/agent.leveldb")
-		return
-	}
-	levelDB = db
-	defer db.Close()
-
-	// compact db
-	err = db.CompactRange(*util.BytesPrefix([]byte("log.")))
-	if err != nil {
-		logs.Println("leveldb:", err.Error())
-	}
-
 	// 读取本地数据库日志并发送到Master
 	go func() {
-		for {
-			if db == nil {
-				break
-			}
-			iterator := db.NewIterator(util.BytesPrefix([]byte("log.")), nil)
-
-			for iterator.Next() {
-				key := iterator.Key()
-
+		for db.Next() {
+			db.Read(func(value []byte) {
 				// Push到Master服务器
-				value := iterator.Value()
-
-				// 不保存本地记录，因为只有即时的数据对监控才有意义
-				err = db.Delete(key, nil)
-				if err != nil {
-					logs.Error(err)
-				}
-
 				req, err := http.NewRequest(http.MethodPost, connectConfig.Master+"/api/agent/push", bytes.NewReader(value))
 				if err != nil {
 					logs.Println("error:", err.Error())
@@ -853,12 +822,9 @@ func pushEvents() {
 					}()
 					if err != nil {
 						time.Sleep(60 * time.Second)
-						break
 					}
 				}
-			}
-
-			iterator.Release()
+			})
 			time.Sleep(1 * time.Second)
 		}
 	}()
@@ -889,7 +855,10 @@ func pushEvents() {
 
 		if db != nil {
 			logId++
-			db.Put([]byte(fmt.Sprintf("log.%d_%d", time.Now().Unix(), logId)), jsonData, nil)
+			err = db.Write(append(jsonData, '\n'))
+			if err != nil {
+				logs.Println("[ERROR]" + err.Error())
+			}
 		}
 	}
 }
@@ -1164,12 +1133,8 @@ func checkNewVersion() {
 			}
 
 			// 停止当前
-			if levelDB != nil {
-				err := levelDB.Close()
-				if err != nil {
-					logs.Println("leveldb error:", err.Error())
-					return
-				}
+			if db != nil {
+				db.Close()
 			}
 
 			// status server
