@@ -769,9 +769,11 @@ func pullEvents() error {
 }
 
 // 向Master同步事件
-var db = teautils.NewFileBuffer(Tea.Root + "/logs/agent")
+var db *teautils.FileBuffer = nil
 
 func pushEvents() {
+	db = teautils.NewFileBuffer(Tea.Root + "/logs/agent")
+
 	// 读取本地数据库日志并发送到Master
 	go func() {
 		for db.Next() {
@@ -1135,6 +1137,7 @@ func checkNewVersion() {
 			// 停止当前
 			if db != nil {
 				db.Close()
+				db = nil
 			}
 
 			// status server
