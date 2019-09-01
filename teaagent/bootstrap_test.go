@@ -1,9 +1,12 @@
 package teaagent
 
-import (
-	"testing"
-)
+import "testing"
 
-func TestRetrieveOsName(t *testing.T) {
-	t.Log(retrieveOsName())
+func TestOSName(t *testing.T) {
+	t.Log(retrieveOSName())
+	t.Log(retrieveOSNameBase64())
+
+	// from cache
+	t.Log(retrieveOSName())
+	t.Log(retrieveOSNameBase64())
 }

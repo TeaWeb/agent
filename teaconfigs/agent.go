@@ -1,16 +1,19 @@
 package teaconfigs
 
 import (
+	"github.com/go-yaml/yaml"
 	"github.com/iwind/TeaGo/Tea"
 	"github.com/iwind/TeaGo/files"
 	"github.com/iwind/TeaGo/maps"
 	"github.com/iwind/TeaGo/types"
+	"io/ioutil"
 )
 
 type AgentConfig struct {
-	Master string `yaml:"master" json:"master"`
-	Id     string `yaml:"id" json:"id"`
-	Key    string `yaml:"key" json:"key"`
+	Master   string `yaml:"master" json:"master"`
+	Id       string `yaml:"id" json:"id"`
+	Key      string `yaml:"key" json:"key"`
+	GroupKey string `yaml:"group" json:"group"`
 }
 
 func SharedAgentConfig() (*AgentConfig, error) {
@@ -65,4 +68,13 @@ func SharedAgentConfig() (*AgentConfig, error) {
 		return nil, err
 	}
 	return a, nil
+}
+
+// 保存到文件
+func (this *AgentConfig) Save() error {
+	data, err := yaml.Marshal(this)
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(Tea.ConfigFile("agent.conf"), data, 0777)
 }

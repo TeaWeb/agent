@@ -77,6 +77,7 @@ func (this *FileBuffer) Write(data []byte) error {
 	if err == nil {
 		err = this.writer.Sync()
 	}
+
 	this.locker.Unlock()
 	return err
 }
