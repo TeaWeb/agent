@@ -1,5 +1,5 @@
 package teaconst
 
 const (
-	AgentVersion = "0.1.7"
+	AgentVersion = "0.1.7.1"
 )

@@ -12,7 +12,7 @@ func TestNewFileBuffer(t *testing.T) {
 	logs.Println("starting ...")
 	buf := NewFileBuffer("a")
 	buf.Debug()
-	longText := []byte(strings.Repeat("abc", 1000) + "\n")
+	longText := []byte(strings.Repeat("abc", 10000) + "\n")
 	go func() {
 		i := 0
 		for {
@@ -31,7 +31,7 @@ func TestNewFileBuffer(t *testing.T) {
 			break
 		}
 		buf.Read(func(data []byte) {
-			fmt.Println("read:", string(data))
+			fmt.Println("read:", len(data))
 		})
 		time.Sleep(1 * time.Second)
 	}

@@ -98,9 +98,9 @@ func (this *FileBuffer) Read(f func(data []byte)) {
 	reader := bufio.NewReader(this.reader)
 	i := 0
 	for {
-		line, _, err := reader.ReadLine()
+		line, err := reader.ReadBytes('\n')
 		if len(line) > 0 {
-			f(line)
+			f(line[:len(line)-1])
 			i++
 		}
 		if this.MaxLines > 0 && i > this.MaxLines {
