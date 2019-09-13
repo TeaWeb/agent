@@ -180,8 +180,10 @@ func pullEvents() error {
 					if item.config.Id == itemId {
 						found = true
 						go func(item *Item) {
+							t := time.Now()
 							value, err := item.Run()
-							PushEvent(NewItemEvent(runningAgent.Id, item.appId, item.config.Id, value, err))
+							costMs := time.Since(t).Seconds() * 1000
+							PushEvent(NewItemEvent(runningAgent.Id, item.appId, item.config.Id, value, err, t.Unix(), costMs))
 						}(item)
 						break
 					}

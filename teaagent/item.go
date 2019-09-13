@@ -29,7 +29,7 @@ func (this *Item) Run() (value interface{}, err error) {
 	source := this.config.Source()
 	if source == nil {
 		errMsg := "item " + this.config.Name + " source '" + this.config.SourceCode + "' does not exist, please update this agent to latest version"
-		PushEvent(NewItemEvent(runningAgent.Id, this.appId, this.config.Id, "", errors.New(errMsg)))
+		PushEvent(NewItemEvent(runningAgent.Id, this.appId, this.config.Id, "", errors.New(errMsg), time.Now().Unix(), 0))
 		return "", errors.New(errMsg)
 	}
 	return source.Execute(nil)
@@ -45,11 +45,13 @@ func (this *Item) Schedule() {
 		if source == nil {
 			errMsg := "item " + this.config.Name + " source '" + this.config.SourceCode + "' does not exist, please update this agent to latest version"
 			logs.Println(errMsg)
-			PushEvent(NewItemEvent(runningAgent.Id, this.appId, this.config.Id, "", errors.New(errMsg)))
+			PushEvent(NewItemEvent(runningAgent.Id, this.appId, this.config.Id, "", errors.New(errMsg), time.Now().Unix(), 0))
 			return
 		}
 
+		t := time.Now()
 		value, err := source.Execute(nil)
+		costMs := time.Since(t).Seconds() * 1000
 		if err != nil {
 			logs.Println("execute " + this.config.Name + " error:" + err.Error())
 		} else {
@@ -82,15 +84,20 @@ func (this *Item) Schedule() {
 		}
 
 		if value != nil {
-			PushEvent(NewItemEvent(runningAgent.Id, this.appId, this.config.Id, value, err))
+			PushEvent(NewItemEvent(runningAgent.Id, this.appId, this.config.Id, value, err, t.Unix(), costMs))
 		} else {
-			PushEvent(NewItemEvent(runningAgent.Id, this.appId, this.config.Id, "", err))
+			PushEvent(NewItemEvent(runningAgent.Id, this.appId, this.config.Id, "", err, t.Unix(), costMs))
 		}
 	})
 }
 
 // 停止运行
 func (this *Item) Stop() {
+	source := this.config.Source()
+	if source != nil {
+		source.Stop()
+	}
+
 	if this.lastTimer != nil {
 		this.lastTimer.Stop()
 	}
