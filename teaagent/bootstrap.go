@@ -154,10 +154,21 @@ func Start() {
 
 	// 下载配置
 	{
-		err := downloadConfig()
-		if err != nil {
-			logs.Println("start failed:" + err.Error())
-			return
+		// 遇到网络错误多次尝试
+		countTries := 10
+		for i := 0; i < countTries; i++ {
+			err := downloadConfig()
+			if err != nil {
+				logs.Println("start failed: " + err.Error())
+
+				if i < countTries-1 {
+					time.Sleep(5 * time.Second)
+					continue
+				} else {
+					return
+				}
+			}
+			break
 		}
 	}
 
