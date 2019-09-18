@@ -7,6 +7,7 @@ import (
 	"github.com/iwind/TeaGo/maps"
 	"github.com/iwind/TeaGo/types"
 	"io/ioutil"
+	"os"
 )
 
 type AgentConfig struct {
@@ -28,7 +29,9 @@ func SharedAgentConfig() (*AgentConfig, error) {
 		if err != nil {
 			return nil, err
 		}
-		defer serverReader.Close()
+		defer func() {
+			_ = serverReader.Close()
+		}()
 
 		m := maps.Map{}
 		err = serverReader.ReadYAML(&m)
@@ -60,7 +63,9 @@ func SharedAgentConfig() (*AgentConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer reader.Close()
+	defer func() {
+		_ = reader.Close()
+	}()
 
 	a := &AgentConfig{}
 	err = reader.ReadYAML(a)
@@ -76,5 +81,11 @@ func (this *AgentConfig) Save() error {
 	if err != nil {
 		return err
 	}
+
+	_, err = os.Stat(Tea.ConfigDir())
+	if err != nil {
+		_ = os.Mkdir(Tea.ConfigDir(), 0777)
+	}
+
 	return ioutil.WriteFile(Tea.ConfigFile("agent.conf"), data, 0777)
 }

@@ -10,7 +10,7 @@ bin/teaweb-agent
    run in foreground
 
 bin/teaweb-agent help 					
-   show help
+   show this help
 
 bin/teaweb-agent start 					
    start agent in background
@@ -29,6 +29,9 @@ bin/teaweb-agent run [TASK ID]
 
 bin/teaweb-agent run [ITEM ID]		
    run monitor item
+
+bin/teaweb-agent init -master=[MASTER SERVER] -group=[GROUP KEY]
+   register agent to master server and specified group
 
 bin/teaweb-agent [-v|version]
    show agent version

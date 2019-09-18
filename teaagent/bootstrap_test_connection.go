@@ -63,7 +63,7 @@ func testConnection() error {
 	}
 
 	if respMap.GetInt("code") != 200 {
-		return errors.New("invalid response from master:" + string(data))
+		return errors.New("invalid response from master: " + string(data))
 	}
 
 	jsonData := respMap.Get("data")

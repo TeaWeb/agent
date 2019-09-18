@@ -52,6 +52,12 @@ func Start() {
 		return
 	}
 
+	// 初始化
+	if lists.ContainsString(os.Args, "init") {
+		onInit()
+		return
+	}
+
 	if len(os.Args) == 0 {
 		writePid()
 	}
@@ -60,7 +66,7 @@ func Start() {
 	{
 		config, err := teaconfigs.SharedAgentConfig()
 		if err != nil {
-			logs.Println("start failed:" + err.Error())
+			logs.Println("start failed: " + err.Error())
 			return
 		}
 		connectConfig = config
@@ -119,7 +125,10 @@ func Start() {
 
 		logDir := files.NewFile(Tea.Root + "/logs")
 		if !logDir.IsDir() {
-			logDir.Mkdir()
+			err := logDir.Mkdir()
+			if err != nil {
+				logs.Println(err.Error())
+			}
 		}
 
 		fp, err := os.OpenFile(Tea.Root+"/logs/run.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
@@ -159,11 +168,11 @@ func Start() {
 
 	// 定时
 	logs.Println("agent schedule tasks ...")
-	scheduleTasks()
+	_ = scheduleTasks()
 
 	// 监控项数据
 	logs.Println("agent schedule items ...")
-	scheduleItems()
+	_ = scheduleItems()
 
 	// 检测Apps
 	logs.Println("agent detect tasks ...")
@@ -221,5 +230,8 @@ func findTaskName(taskId string) string {
 func writePid() {
 	// write pid
 	pidFile := files.NewFile(Tea.Root + "/logs/pid")
-	pidFile.WriteString(fmt.Sprintf("%d", os.Getpid()))
+	err := pidFile.WriteString(fmt.Sprintf("%d", os.Getpid()))
+	if err != nil {
+		logs.Println(err.Error())
+	}
 }
