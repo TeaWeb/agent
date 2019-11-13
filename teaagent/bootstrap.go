@@ -6,6 +6,7 @@ import (
 	"github.com/TeaWeb/agent/teaconst"
 	"github.com/TeaWeb/agent/teautils"
 	"github.com/TeaWeb/code/teaconfigs/agents"
+	teautils2 "github.com/TeaWeb/code/teautils"
 	"github.com/iwind/TeaGo/Tea"
 	"github.com/iwind/TeaGo/files"
 	"github.com/iwind/TeaGo/lists"
@@ -58,7 +59,7 @@ func Start() {
 		return
 	}
 
-	if len(os.Args) == 0 {
+	if len(os.Args) == 1 {
 		writePid()
 	}
 
@@ -238,10 +239,9 @@ func findTaskName(taskId string) string {
 	return task.Name
 }
 
+// 写入Pid
 func writePid() {
-	// write pid
-	pidFile := files.NewFile(Tea.Root + "/logs/pid")
-	err := pidFile.WriteString(fmt.Sprintf("%d", os.Getpid()))
+	err := teautils2.WritePid(Tea.Root + "/logs/pid")
 	if err != nil {
 		logs.Println(err.Error())
 	}

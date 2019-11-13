@@ -1,27 +1,23 @@
 package teaagent
 
 import (
+	"fmt"
+	"github.com/TeaWeb/agent/teaconst"
+	"github.com/TeaWeb/code/teautils"
 	"github.com/iwind/TeaGo/Tea"
-	"github.com/iwind/TeaGo/files"
-	"github.com/iwind/TeaGo/logs"
-	"github.com/iwind/TeaGo/types"
-	"os"
 )
 
 // 停止
 func onStop() {
-	pidFile := files.NewFile(Tea.Root + "/logs/pid")
-	pid, err := pidFile.ReadAllString()
-	if err != nil {
-		logs.Println("error:", err.Error())
-	} else {
-		process, err := os.FindProcess(types.Int(pid))
-		if err != nil {
-			logs.Println("error:", err.Error())
-		} else {
-			process.Kill()
-			logs.Println("stopped pid", pid)
-			pidFile.Delete()
-		}
+	pidFile := Tea.Root + "/logs/pid"
+	proc := teautils.CheckPid(pidFile)
+	if proc == nil {
+		fmt.Println(teaconst.AgentProductName + " agent is not running")
+		return
 	}
+
+	_ = proc.Kill()
+	fmt.Println(teaconst.AgentProductName+" stopped pid:", proc.Pid)
+
+	_ = teautils.DeletePid(pidFile)
 }

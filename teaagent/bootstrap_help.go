@@ -1,40 +1,25 @@
 package teaagent
 
-import "fmt"
+import (
+	"github.com/TeaWeb/agent/teaconst"
+	"github.com/TeaWeb/agent/teautils"
+)
 
 // 打印帮助
 func printHelp() {
-	fmt.Print(`Usage:
-~~~
-bin/teaweb-agent						
-   run in foreground
-
-bin/teaweb-agent help 					
-   show this help
-
-bin/teaweb-agent start 					
-   start agent in background
-
-bin/teaweb-agent stop 					
-   stop running agent
-
-bin/teaweb-agent restart				
-   restart the agent
-
-bin/teaweb-agent status
-   lookup agent status
-
-bin/teaweb-agent run [TASK ID]		
-   run task
-
-bin/teaweb-agent run [ITEM ID]		
-   run monitor item
-
-bin/teaweb-agent init -master=[MASTER SERVER] -group=[GROUP KEY]
-   register agent to master server and specified group
-
-bin/teaweb-agent [-v|version]
-   show agent version
-~~~
-`)
+	teautils.NewCommandHelp().
+		Product(teaconst.AgentProductName).
+		Version(teaconst.AgentVersion).
+		Usage("./bin/"+teaconst.AgentProcessName+" [options]").
+		Option("-h", "show this help").
+		Option("-v|version", "show agent version").
+		Option("start", "start agent in background").
+		Option("stop", "stop running agent").
+		Option("restart", "restart the agent").
+		Option("status", "lookup agent status").
+		Option("run [TASK ID]", "run task").
+		Option("run [ITEM ID]", "run app item").
+		Option("init -master=[MASTER SERVER] -group=[GROUP KEY]", "register agent to master server and specified group").
+		Append("To run agent in foreground\n   bin/teaweb-agent").
+		Print()
 }

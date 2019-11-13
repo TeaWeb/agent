@@ -44,7 +44,9 @@ func pushEvents() {
 							logs.Println("error:", err.Error())
 							return err
 						}
-						defer resp.Body.Close()
+						defer func() {
+							_ = resp.Body.Close()
+						}()
 						if resp.StatusCode != 200 {
 							return errors.New("") // 保持空字符串，方便其他地方识别错误
 						}
@@ -87,7 +89,7 @@ func pushEvents() {
 			// 进程事件
 			if event, found := event.(*ProcessEvent); found {
 				if event.EventType == ProcessEventStdout || event.EventType == ProcessEventStderr {
-					logs.Println("[" + findTaskName(event.TaskId) + "]" + string(event.Data))
+					logs.Println("[" + findTaskName(event.TaskId) + "]" + event.Data)
 				} else if event.EventType == ProcessEventStart {
 					logs.Println("[" + findTaskName(event.TaskId) + "]start")
 				} else if event.EventType == ProcessEventStop {
