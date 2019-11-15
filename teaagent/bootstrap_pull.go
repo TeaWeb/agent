@@ -135,21 +135,21 @@ func pullEvents() error {
 		name := eventMap.GetString("name")
 		switch name {
 		case "UPDATE_AGENT":
-			downloadConfig()
+			go downloadConfig()
 		case "REMOVE_AGENT":
 			os.Exit(0)
 		case "ADD_APP":
-			downloadConfig()
+			go downloadConfig()
 		case "UPDATE_APP":
-			downloadConfig()
+			go downloadConfig()
 		case "REMOVE_APP":
-			downloadConfig()
+			go downloadConfig()
 		case "ADD_TASK":
-			downloadConfig()
+			go downloadConfig()
 		case "UPDATE_TASK":
-			downloadConfig()
+			go downloadConfig()
 		case "REMOVE_TASK":
-			downloadConfig()
+			go downloadConfig()
 		case "RUN_TASK":
 			eventDataMap := eventMap.GetMap("data")
 			if eventDataMap != nil {
@@ -165,11 +165,11 @@ func pullEvents() error {
 				logs.Println("invalid event data: should be a map")
 			}
 		case "ADD_ITEM":
-			downloadConfig()
+			go downloadConfig()
 		case "UPDATE_ITEM":
-			downloadConfig()
+			go downloadConfig()
 		case "DELETE_ITEM":
-			downloadConfig()
+			go downloadConfig()
 		case "RUN_ITEM":
 			eventDataMap := eventMap.GetMap("data")
 			if eventDataMap != nil {
