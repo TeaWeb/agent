@@ -1,7 +1,7 @@
 package teaconst
 
 const (
-	AgentVersion = "0.1.8.2"
+	AgentVersion = "0.1.9"
 
 	AgentProductName = "TeaWeb Agent"
 	AgentProcessName = "teaweb-agent"
