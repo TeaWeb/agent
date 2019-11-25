@@ -197,11 +197,20 @@ func Start() {
 	go pushEvents()
 
 	// 同步配置
+	countTries := 0
 	for {
 		err := pullEvents()
 		if err != nil {
+			countTries++
 			logs.Println("pull error:", err.Error())
-			time.Sleep(30 * time.Second)
+
+			if countTries < 5 {
+				time.Sleep(3 * time.Second)
+			} else {
+				time.Sleep(30 * time.Second)
+			}
+		} else {
+			countTries = 0
 		}
 	}
 }

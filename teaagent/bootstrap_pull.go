@@ -82,16 +82,12 @@ func pullEvents() error {
 		// 如果是超时的则不提示，因为长连接依赖超时设置
 		return nil
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return errors.New("invalid status response from master '" + fmt.Sprintf("%d", resp.StatusCode) + "'")
-	}
-
-	// 恢复连接
-	if connectionIsBroken {
-		connectionIsBroken = false
-		initConnection()
 	}
 
 	data, err := ioutil.ReadAll(resp.Body)
