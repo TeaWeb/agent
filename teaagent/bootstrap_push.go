@@ -118,8 +118,6 @@ func pushEvents() {
 			if err != nil {
 				logs.Println("[ERROR]" + err.Error())
 			}
-
-			_, err = db.Write([]byte{'\n'})
 		}
 	}
 }
